@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Sign In — CipherBallot{% endblock %}
+{% block topbar_title %}Sign In{% endblock %}
+{% block content %}
+<div style="max-width:440px;margin:2rem auto">
+  <div class="card" style="box-shadow:var(--shadow-md);border-top:4px solid var(--primary);">
+    <div class="card-header" style="text-align:center;padding:1.5rem 1.5rem 1rem 1.5rem;">
+      <div style="width:48px;height:48px;border-radius:12px;background:var(--primary-light);color:var(--primary-dark);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto 0.75rem auto;">
+        <i class="bi bi-shield-lock"></i>
+      </div>
+      <h2 style="font-size:1.3rem;font-weight:700;margin:0 0 0.25rem 0;">Sign In to CipherBallot</h2>
+      <p style="font-size:0.85rem;color:var(--text-muted);margin:0;">
+        Educational Online Voting Prototype (Variant {{ project_variant }})
+      </p>
+    </div>
+
+    <div class="card-body" style="padding:1.5rem;">
+      <form method="post" action="{{ url_for('auth.login') }}" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="username" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
+            Student ID / Username:
+          </label>
+          {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), id="username", placeholder="e.g. alice, bob, admin", autofocus=true) }}
+          {% for error in form.username.errors %}
+            <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="password" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
+            Password:
+          </label>
+          {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), id="password", placeholder="Enter your password") }}
+          {% for error in form.password.errors %}
+            <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="form-group" style="margin-bottom:1.25rem;">
+          <label class="form-check" style="font-size:0.85rem;color:var(--text-muted);display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+            {{ form.remember_me() }}
+            <span>Remember this session</span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:0.65rem;font-weight:600;">
+          <i class="bi bi-box-arrow-in-right"></i> Sign In
+        </button>
+      </form>
+
+      <div style="text-align:center;margin-top:1rem;font-size:0.85rem;color:var(--text-muted);">
+        New student voter? 
+        <a href="{{ url_for('auth.register') }}" style="color:var(--primary);font-weight:600;text-decoration:none;">
+          <i class="bi bi-person-plus"></i> Register with Student ID
+        </a>
+      </div>
+
+      <!-- Demo Accounts Accordion for Classroom Evaluators -->
+      <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border);">
+        <details style="font-size:0.825rem;">
+          <summary style="font-weight:600;color:var(--primary);cursor:pointer;margin-bottom:0.5rem;">
+            <i class="bi bi-key-fill"></i> Seeded Demo Credentials (Classroom Demo)
+          </summary>
+          <div style="background:var(--bg-secondary);padding:0.75rem;border-radius:6px;font-family:monospace;font-size:0.78rem;line-height:1.6;">
+            <div><strong>Admin:</strong> <code>admin</code> / <code>Admin@Demo123</code></div>
+            <div><strong>Voter 1:</strong> <code>alice</code> / <code>Voter@Alice1</code></div>
+            <div><strong>Voter 2:</strong> <code>bob</code> / <code>Voter@Bob123</code></div>
+            <div><strong>Voter 3:</strong> <code>carol</code> / <code>Voter@Carol1</code></div>
+            <div><strong>Voter 4:</strong> <code>dave</code> / <code>Voter@Dave123</code></div>
+            <div><strong>Voter 5:</strong> <code>eve</code> / <code>Voter@Eve1234</code></div>
+          </div>
+          <small style="color:var(--text-muted);display:block;margin-top:0.35rem;font-size:0.75rem;">
+            ⚠️ Local demonstration only. Stored as Argon2id hashes.
+          </small>
+        </details>
+      </div>
+    </div>
+
+    <div class="card-footer" style="font-size:0.78rem;color:var(--text-muted);text-align:center;background:var(--bg);">
+      🔒 Passwords hashed using Argon2id (m=64MB, t=2 passes, p=2)
+    </div>
+  </div>
+</div>
+{% endblock %}
