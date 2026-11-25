@@ -67,7 +67,7 @@
     <h3 style="font-size:1rem;font-weight:600;margin:0;">
       Published Cryptographic Digests — {{ selected_election.title }}
     </h3>
-    <span style="font-size:0.8rem;color:var(--text-muted);">SHA-256 Digest of (election_id || ballot_id || nonce || ciphertext || tag)</span>
+    <span style="font-size:0.8rem;color:var(--text-muted);">SHA-256 Digest of (election_id || ballot_id || nonce || ciphertext || tag || wrapped_key)</span>
   </div>
   
   {% if receipts %}
@@ -118,7 +118,11 @@
   {% else %}
   <div style="text-align:center;padding:3rem 1.5rem;color:var(--text-muted);">
     <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:0.5rem;opacity:0.5;"></i>
-    No ballots have been recorded for this election yet.
+    {% if selected_election.variant == 'A' %}
+      <strong>Variant A Single-Class Election:</strong> Public verifiable receipts are not issued in Variant A mode (votes are still encrypted with Hybrid RSA-OAEP + AES-256-GCM). Select a Variant B or C election to inspect public receipt digests.
+    {% else %}
+      No ballots have been recorded for this election yet.
+    {% endif %}
   </div>
   {% endif %}
 </div>

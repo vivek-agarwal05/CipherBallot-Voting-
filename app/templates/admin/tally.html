@@ -16,7 +16,7 @@
         Ballot Decryption &amp; Certification: {{ election.title }}
       </h1>
       <p style="color:var(--text-muted);font-size:0.925rem;">
-        Decrypt stored AES-256-GCM ballots, verify authentication tags, aggregate vote totals, and apply an Ed25519 digital signature.
+        Decrypt stored Hybrid RSA-OAEP + AES-256-GCM ballots, verify authentication tags, aggregate vote totals, and apply an Ed25519 digital signature.
       </p>
     </div>
   </div>
@@ -68,7 +68,7 @@
 {% endif %}
 
 <!-- Candidate Tally Table & Chart -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:1.5rem;margin-bottom:2rem;">
   <div class="card" style="padding:1.5rem;">
     <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:1rem;">Aggregated Vote Totals</h3>
     <div class="table-wrapper">
@@ -104,6 +104,23 @@
 </div>
 
 <!-- Sign & Publish Action Card -->
+{% if election.status == 'published' %}
+<div class="card" style="padding:1.5rem;border-left:4px solid var(--success);">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin:0 0 0.25rem 0;">
+        <i class="bi bi-patch-check-fill" style="color:var(--success);"></i> Results Already Certified &amp; Published
+      </h3>
+      <p style="font-size:0.875rem;color:var(--text-muted);margin:0;">
+        This election's canonical results have already been signed with the institutional Ed25519 key and published.
+      </p>
+    </div>
+    <a href="{{ url_for('public.election_results', election_id=election.id) }}" class="btn btn-outline">
+      <i class="bi bi-bar-chart"></i> View Certified Results &rarr;
+    </a>
+  </div>
+</div>
+{% else %}
 <div class="card" style="padding:1.5rem;border-left:4px solid var(--primary);">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
     <div>
@@ -122,6 +139,7 @@
     </form>
   </div>
 </div>
+{% endif %}
 
 {% else %}
 <div class="card" style="text-align:center;padding:3rem 1.5rem;">

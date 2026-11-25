@@ -97,7 +97,7 @@
         </div>
         <div class="card-footer" style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:0.8rem;color:var(--text-muted);">
-            <i class="bi bi-shield-check"></i> Encrypted with AES-GCM
+            <i class="bi bi-shield-check"></i> Hybrid RSA-OAEP + AES-GCM
           </span>
           {% if current_user.is_authenticated and not current_user.is_admin %}
             <a href="{{ url_for('voter.cast_vote', election_id=election.id) }}" class="btn btn-primary btn-sm">Cast Vote</a>

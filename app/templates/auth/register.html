@@ -32,7 +32,7 @@
       <form method="post" action="{{ url_for('auth.register') }}" novalidate>
         {{ form.hidden_tag() }}
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;margin-bottom:1rem;">
           <!-- Student ID Field -->
           <div class="form-group">
             <label for="student_id" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
@@ -56,7 +56,7 @@
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;margin-bottom:1rem;">
           <!-- Desired Username -->
           <div class="form-group">
             <label for="username" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
@@ -80,7 +80,7 @@
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;margin-bottom:1rem;">
           <!-- Department -->
           <div class="form-group">
             <label for="department" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
@@ -104,7 +104,7 @@
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;margin-bottom:1.25rem;">
           <!-- Password -->
           <div class="form-group">
             <label for="password" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
@@ -162,7 +162,13 @@
                     <td style="padding:0.25rem 0.4rem;"><code>{{ s.student_id }}</code></td>
                     <td style="padding:0.25rem 0.4rem;">{{ s.full_name }}</td>
                     <td style="padding:0.25rem 0.4rem;">{{ s.department }}</td>
-                    <td style="padding:0.25rem 0.4rem;"><code>PIN-{{ s.student_id.split('-')[-1] }}</code></td>
+                    <td style="padding:0.25rem 0.4rem;">
+                      {% if s.student_id in ('STU-CS-2024-010', 'STU-SEC-2024-011', 'STU-CS-2024-012', 'STU-DS-2024-013') %}
+                        <code>PIN-{{ s.student_id.split('-')[-1] }}</code>
+                      {% else %}
+                        <span style="color:var(--text-muted);">Issued by Admin</span>
+                      {% endif %}
+                    </td>
                   </tr>
                   {% endfor %}
                 </tbody>

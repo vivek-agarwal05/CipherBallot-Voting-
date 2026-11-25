@@ -41,8 +41,11 @@
   <div class="card" style="padding:1.25rem;text-align:center;">
     <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Ballots Cast</span>
     <div style="font-size:1.75rem;font-weight:700;color:var(--primary);margin-top:0.25rem;">
-      {{ result_data.get('total_participated', result_data.get('total_ballots', '—')) }}
+      {{ result_data.get('total_ballots_stored', result_data.get('total_participated', result_data.get('total_ballots', '—'))) }}
     </div>
+    {% if election.variant == 'C' and result_data.get('total_participated') is not none %}
+      <span style="font-size:0.75rem;color:var(--text-muted);">({{ result_data.get('total_participated') }} anonymous tokens claimed)</span>
+    {% endif %}
   </div>
 
   <div class="card" style="padding:1.25rem;text-align:center;">
@@ -61,7 +64,7 @@
 </div>
 
 <!-- Candidate Tally Table & Chart -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:1.5rem;margin-bottom:2rem;">
   <div class="card" style="padding:1.5rem;">
     <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:1rem;">Candidate Vote Counts</h3>
     <div class="table-wrapper">
@@ -127,7 +130,7 @@
       </code>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:1rem;">
       <div>
         <span style="color:var(--text-muted);display:block;margin-bottom:0.25rem;">Signer Public Key ID:</span>
         <code style="display:block;background:var(--bg-secondary);padding:0.4rem;border-radius:4px;font-size:0.8rem;">

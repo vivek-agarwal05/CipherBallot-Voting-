@@ -518,9 +518,10 @@ def run_security_demo():
     cand = demo_election.candidates[0] if demo_election.candidates else None
 
     if demo_voter and cand:
-        db.session.query(Participation).filter_by(
-            election_id=demo_election.id, voter_id=demo_voter.id
-        ).delete()
+        # Clean isolated demo election records so repeated demo runs stay 1:1
+        db.session.query(Receipt).filter_by(election_id=demo_election.id).delete()
+        db.session.query(EncryptedBallot).filter_by(election_id=demo_election.id).delete()
+        db.session.query(Participation).filter_by(election_id=demo_election.id).delete()
         elig = db.session.query(ElectionEligibility).filter_by(
             election_id=demo_election.id, voter_id=demo_voter.id
         ).first()
