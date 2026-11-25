@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Voter Eligibility — {{ election.title }}{% endblock %}
+{% block topbar_title %}Voter Eligibility Roster{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <a href="{{ url_for('admin.edit_election', election_id=election.id) }}" class="btn btn-ghost btn-sm" style="margin-bottom:0.5rem;">
+    &larr; Back to {{ election.title }}
+  </a>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">
+        Voter Eligibility: {{ election.title }}
+      </h1>
+      <p style="color:var(--text-muted);font-size:0.925rem;">
+        Control which authenticated students hold voting privileges in this specific poll.
+      </p>
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <a href="{{ url_for('admin.import_eligibility_csv', election_id=election.id) }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-file-earmark-spreadsheet"></i> Bulk Import CSV
+      </a>
+      <a href="{{ url_for('admin.download_csv_template') }}" class="btn btn-outline btn-sm">
+        <i class="bi bi-download"></i> Download CSV Template
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Add Individual Voter -->
+<div class="card" style="margin-bottom:1.5rem;padding:1.25rem;">
+  <form method="post" action="{{ url_for('admin.add_single_voter_eligibility', election_id=election.id) }}" style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex-grow:1;min-width:240px;">
+      <label for="username" style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.25rem;">
+        Grant Eligibility by Student ID / Username:
+      </label>
+      <input type="text" id="username" name="username" class="form-control" placeholder="e.g. alice, bob, student123" required>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm" style="height:38px;">
+      <i class="bi bi-person-plus"></i> Grant Eligibility
+    </button>
+  </form>
+</div>
+
+<!-- Roster Table -->
+<div class="card">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <h3 style="font-size:1.05rem;font-weight:600;margin:0;">Registered Student Roster</h3>
+    <span style="font-size:0.8rem;color:var(--text-muted);">
+      {{ voters|length }} total registered users in system
+    </span>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Student Username</th>
+          <th>Full Name</th>
+          <th>Account Status</th>
+          <th>Eligibility in this Election</th>
+          <th style="text-align:right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for voter in voters %}
+        {% set is_eligible = (eligibilities.get(voter.id) == 'eligible') %}
+        <tr>
+          <td><code style="font-size:0.85rem;color:var(--navy);">{{ voter.username }}</code></td>
+          <td style="font-weight:500;">{{ voter.display_name }}</td>
+          <td>
+            <span class="badge {% if voter.is_active %}badge-success{% else %}badge-draft{% endif %}" style="font-size:0.7rem;">
+              {{ 'Active' if voter.is_active else 'Suspended' }}
+            </span>
+          </td>
+          <td>
+            {% if is_eligible %}
+              <span class="badge badge-success"><i class="bi bi-check-circle"></i> Eligible</span>
+            {% else %}
+              <span class="badge badge-draft"><i class="bi bi-dash-circle"></i> Ineligible</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right;">
+            <form method="post" action="{{ url_for('admin.edit_election', election_id=election.id) }}" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="toggle_eligibility">
+              <input type="hidden" name="voter_id" value="{{ voter.id }}">
+              <button type="submit" class="btn {% if is_eligible %}btn-outline{% else %}btn-primary{% endif %} btn-sm">
+                {{ 'Revoke' if is_eligible else 'Grant' }}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

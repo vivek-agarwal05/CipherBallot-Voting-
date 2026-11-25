@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Audit &amp; Integrity Center — CipherBallot{% endblock %}
+{% block topbar_title %}Audit &amp; Integrity Center{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">
+        <i class="bi bi-journal-text"></i> Audit &amp; Integrity Center
+      </h1>
+      <p style="color:var(--text-muted);font-size:0.925rem;">
+        Hash-chained append-only event log. Each event seals the digest of all prior history.
+      </p>
+    </div>
+    <form method="post" action="{{ url_for('admin.verify_audit') }}" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i class="bi bi-shield-check"></i> Verify Audit Chain
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Search & Metrics Bar -->
+<div class="card" style="margin-bottom:1.5rem;padding:1rem 1.25rem;">
+  <form method="get" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+    <div style="flex-grow:1;min-width:240px;position:relative;">
+      <input type="text" name="q" value="{{ search or '' }}" placeholder="Search by event type, actor, or payload..." class="form-control" style="font-size:0.875rem;">
+    </div>
+    <button type="submit" class="btn btn-outline btn-sm">
+      <i class="bi bi-search"></i> Search
+    </button>
+    {% if search %}
+      <a href="{{ url_for('admin.audit_log') }}" class="btn btn-ghost btn-sm">Clear</a>
+    {% endif %}
+    <span style="font-size:0.85rem;color:var(--text-muted);margin-left:auto;">
+      Total Events: <strong>{{ total }}</strong>
+    </span>
+  </form>
+</div>
+
+<!-- Audit Log Table -->
+<div class="card" style="margin-bottom:1.5rem;">
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:60px;">ID</th>
+          <th>Event Type</th>
+          <th>Actor</th>
+          <th>Safe Payload Metadata</th>
+          <th>Previous Hash</th>
+          <th>Event Hash</th>
+          <th>Time (UTC)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for event in events %}
+        <tr>
+          <td style="font-family:monospace;color:var(--text-muted);">#{{ event.id }}</td>
+          <td>
+            <code style="font-size:0.85rem;font-weight:600;color:var(--navy);">{{ event.event_type }}</code>
+          </td>
+          <td>
+            <span class="badge {% if event.actor_category == 'admin' %}badge-warning{% elif event.actor_category == 'voter' %}badge-success{% else %}badge-draft{% endif %}" style="font-size:0.75rem;">
+              {{ event.actor_ref }}
+            </span>
+          </td>
+          <td style="font-size:0.8rem;color:var(--text);max-width:260px;word-break:break-all;">
+            <code>{{ event.safe_payload }}</code>
+          </td>
+          <td>
+            <code style="font-size:0.75rem;color:var(--text-muted);" title="{{ event.prev_hash }}">
+              {{ event.prev_hash[:12] }}...
+            </code>
+          </td>
+          <td>
+            <code style="font-size:0.75rem;color:var(--primary-dark);font-weight:600;" title="{{ event.event_hash }}">
+              {{ event.event_hash[:12] }}...
+            </code>
+          </td>
+          <td style="color:var(--text-muted);font-size:0.8rem;white-space:nowrap;">
+            {{ event.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">
+            No audit events matched your search.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div style="display:flex;gap:0.5rem;justify-content:center;align-items:center;margin-bottom:2rem;">
+  {% if page > 1 %}
+    <a href="?page={{ page - 1 }}{% if search %}&q={{ search }}{% endif %}" class="btn btn-outline btn-sm">
+      &larr; Previous
+    </a>
+  {% endif %}
+  <span style="font-size:0.85rem;color:var(--text-muted);">
+    Page {{ page }} of {{ total_pages }}
+  </span>
+  {% if page < total_pages %}
+    <a href="?page={{ page + 1 }}{% if search %}&q={{ search }}{% endif %}" class="btn btn-outline btn-sm">
+      Next &rarr;
+    </a>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Educational Hash Chain Boundary Notice -->
+<div class="card" style="background:var(--bg);border-left:4px solid var(--info);padding:1.25rem;">
+  <h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.5rem;color:var(--navy);">
+    <i class="bi bi-shield-check"></i> Cryptographic Audit Architecture &amp; Threat Model
+  </h4>
+  <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;margin-bottom:0.5rem;">
+    <strong>Hash Chain Construction:</strong> Every event's digest is computed as <code>SHA-256(prev_hash || canonical_json(safe_payload))</code>.
+    Modifying, deleting, or reordering any past row invalidates every subsequent hash, making retroactive tampering detectable during <code>Verify Audit Chain</code>.
+  </p>
+  <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;margin:0;">
+    <strong>Limitation:</strong> An attacker with full database root access who replaces the entire database and recomputes all hashes from genesis could rewrite history unless external periodic checkpoints or an independent external witness (such as a public transparency log or RFC 6962 tree) are anchored outside the server.
+  </p>
+</div>
+{% endblock %}

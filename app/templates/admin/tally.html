@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Tally &amp; Certify Results — {{ election.title }}{% endblock %}
+{% block topbar_title %}Tally &amp; Decrypt Ballots{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <a href="{{ url_for('admin.elections') }}" class="btn btn-ghost btn-sm" style="margin-bottom:0.5rem;">
+    &larr; Back to Elections
+  </a>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
+        <span class="badge badge-{{ election.status }}" style="text-transform:capitalize;">{{ election.status }}</span>
+        <span class="badge" style="background:var(--primary-light);color:var(--primary-dark);">Variant {{ election.variant }}</span>
+      </div>
+      <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">
+        Ballot Decryption &amp; Certification: {{ election.title }}
+      </h1>
+      <p style="color:var(--text-muted);font-size:0.925rem;">
+        Decrypt stored AES-256-GCM ballots, verify authentication tags, aggregate vote totals, and apply an Ed25519 digital signature.
+      </p>
+    </div>
+  </div>
+</div>
+
+{% if summary %}
+<!-- Decryption & Validation Metrics -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem;margin-bottom:2rem;">
+  <div class="card" style="padding:1.25rem;text-align:center;">
+    <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Stored Ballots</span>
+    <div style="font-size:1.75rem;font-weight:700;color:var(--navy);margin-top:0.25rem;">
+      {{ summary.total_ballots_stored }}
+    </div>
+  </div>
+
+  <div class="card" style="padding:1.25rem;text-align:center;">
+    <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Valid Ballots Decrypted</span>
+    <div style="font-size:1.75rem;font-weight:700;color:var(--success);margin-top:0.25rem;">
+      {{ summary.valid_ballots }}
+    </div>
+  </div>
+
+  <div class="card" style="padding:1.25rem;text-align:center;">
+    <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Corrupted / Invalid Ballots</span>
+    <div style="font-size:1.75rem;font-weight:700;color:{% if invalid_count > 0 %}var(--danger){% else %}var(--text-muted){% endif %};margin-top:0.25rem;">
+      {{ invalid_count }}
+    </div>
+  </div>
+
+  <div class="card" style="padding:1.25rem;text-align:center;">
+    <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Voter Turnout</span>
+    <div style="font-size:1.75rem;font-weight:700;color:var(--primary);margin-top:0.25rem;">
+      {{ summary.turnout_percentage }}%
+    </div>
+  </div>
+</div>
+
+{% if errors %}
+<div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--danger);background:var(--danger-light);padding:1rem;">
+  <h4 style="font-size:0.95rem;font-weight:700;color:#991b1b;margin-bottom:0.5rem;">
+    <i class="bi bi-exclamation-triangle-fill"></i> Decryption Integrity Warnings
+  </h4>
+  <ul style="font-size:0.85rem;color:#7f1d1d;margin:0;padding-left:1.2rem;">
+    {% for err in errors %}
+      <li>{{ err }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- Candidate Tally Table & Chart -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
+  <div class="card" style="padding:1.5rem;">
+    <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:1rem;">Aggregated Vote Totals</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Candidate</th>
+            <th style="text-align:right;">Votes</th>
+            <th style="text-align:right;">Percentage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in summary.candidate_results %}
+          <tr>
+            <td>
+              <strong>{{ c.display_name }}</strong>
+            </td>
+            <td style="text-align:right;font-weight:600;">{{ c.votes }}</td>
+            <td style="text-align:right;">{{ c.vote_percentage }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="padding:1.5rem;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+    <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:1rem;align-self:flex-start;">Tally Breakdown</h3>
+    <div style="width:100%;max-width:320px;height:240px;">
+      <canvas id="adminTallyChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Sign & Publish Action Card -->
+<div class="card" style="padding:1.5rem;border-left:4px solid var(--primary);">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin:0 0 0.25rem 0;">Certify &amp; Publish Election Results</h3>
+      <p style="font-size:0.875rem;color:var(--text-muted);margin:0;line-height:1.5;">
+        Signing serializes these totals into canonical JSON and executes an <strong>Ed25519 digital signature</strong> with the institutional private key.
+        The published results will become accessible on the public portal.
+      </p>
+    </div>
+    <form method="post" onsubmit="return confirm('Confirm result certification: this will generate an Ed25519 digital signature and publish these results publicly.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="publish">
+      <button type="submit" class="btn btn-primary" style="background:var(--success);border-color:var(--success);">
+        <i class="bi bi-pen-fill"></i> Sign &amp; Publish Official Results
+      </button>
+    </form>
+  </div>
+</div>
+
+{% else %}
+<div class="card" style="text-align:center;padding:3rem 1.5rem;">
+  <p style="color:var(--text-muted);">Tally cannot be run until the election is marked Closed.</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if summary and summary.candidate_results %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const ctx = document.getElementById('adminTallyChart');
+  if (!ctx) return;
+  const labels = {{ summary.candidate_results | map(attribute='display_name') | list | tojson }};
+  const votes = {{ summary.candidate_results | map(attribute='votes') | list | tojson }};
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Votes Cast',
+        data: votes,
+        backgroundColor: '#4F46E5',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 } }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

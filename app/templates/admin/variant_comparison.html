@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Variant Comparison — CipherBallot{% endblock %}
+{% block topbar_title %}Architectural Variant Comparison{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.75rem;">
+  <div style="display:inline-block;padding:0.25rem 0.65rem;background:var(--primary-light);color:var(--primary-dark);border-radius:9999px;font-size:0.75rem;font-weight:700;margin-bottom:0.5rem;">
+    CRYPTOGRAPHIC ARCHITECTURE TRADE-OFFS
+  </div>
+  <h1 style="font-size:1.75rem;font-weight:700;color:var(--navy);margin-bottom:0.35rem;">
+    Voting Model Comparison: Anonymous Tokens vs. Identity-Linked Audit Records
+  </h1>
+  <p style="color:var(--text-muted);font-size:0.95rem;max-width:850px;line-height:1.6;">
+    An educational analysis of the core tension in electronic voting: balancing voter anonymity against duplicate prevention and individual auditability.
+  </p>
+</div>
+
+<div style="display:grid;gap:2rem;max-width:1050px;">
+
+  <!-- Active Variant Indicator Card -->
+  <div class="card" style="padding:1.25rem;border-left:4px solid var(--primary);background:var(--bg-secondary);">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem;">
+      <div>
+        <h3 style="font-size:1.05rem;font-weight:700;margin:0 0 0.25rem 0;">
+          Active System Configuration: Multi-Variant Mode ({{ project_variant }})
+        </h3>
+        <p style="font-size:0.875rem;color:var(--text-muted);margin:0;">
+          Configured via <code>PROJECT_VARIANT = "{{ project_variant }}"</code> in <code>app/config.py</code>. Each election supports Variant A, B, or C!
+        </p>
+      </div>
+      <span class="badge badge-success" style="font-size:0.8rem;padding:0.4rem 0.8rem;">
+        All 3 Variants (A, B &amp; C) Live
+      </span>
+    </div>
+  </div>
+
+  <!-- SVG Architecture Flow Diagrams -->
+  <div class="card" style="padding:1.5rem;">
+    <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:1rem;color:var(--navy);">
+      <i class="bi bi-diagram-3"></i> Architectural Workflows Compared
+    </h2>
+
+    <!-- Model 1: Anonymous Blind Token (Variant C) -->
+    <div style="margin-bottom:2rem;">
+      <h3 style="font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:0.5rem;">
+        Model 1: Anonymous One-Time Token (Blind Signature / Token Scheme)
+      </h3>
+      <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">
+        Voter identity is verified during phase 1 (token issuance). The ballot is submitted in phase 2 using only the redeemed token.
+      </p>
+
+      <div style="overflow-x:auto;padding:1rem;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
+        <svg viewBox="0 0 860 140" style="width:100%;min-width:760px;font-family:Inter,sans-serif;">
+          <!-- Voter -->
+          <rect x="10" y="40" width="130" height="60" rx="8" fill="#EEF2FF" stroke="#4F46E5" stroke-width="2"/>
+          <text x="75" y="68" font-size="13" font-weight="600" fill="#1E293B" text-anchor="middle">Student Voter</text>
+          <text x="75" y="86" font-size="10" fill="#64748B" text-anchor="middle">Authenticates ID</text>
+
+          <!-- Arrow 1 -->
+          <line x1="140" y1="70" x2="220" y2="70" stroke="#4F46E5" stroke-width="2" marker-end="url(#arrow)"/>
+          <text x="180" y="62" font-size="10" fill="#4F46E5" text-anchor="middle">1. Request Token</text>
+
+          <!-- Token Issuer -->
+          <rect x="230" y="40" width="150" height="60" rx="8" fill="#F0FDFA" stroke="#0D9488" stroke-width="2"/>
+          <text x="305" y="68" font-size="13" font-weight="600" fill="#1E293B" text-anchor="middle">Token Authority</text>
+          <text x="305" y="86" font-size="10" fill="#64748B" text-anchor="middle">Issues Blind Token</text>
+
+          <!-- Arrow 2 -->
+          <line x1="380" y1="70" x2="460" y2="70" stroke="#0D9488" stroke-width="2"/>
+          <text x="420" y="62" font-size="10" fill="#0D9488" text-anchor="middle">2. Unlink Token</text>
+
+          <!-- Anonymous Ballot Casting -->
+          <rect x="470" y="40" width="160" height="60" rx="8" fill="#FEF3C7" stroke="#F59E0B" stroke-width="2"/>
+          <text x="550" y="68" font-size="13" font-weight="600" fill="#1E293B" text-anchor="middle">Ballot Box</text>
+          <text x="550" y="86" font-size="10" fill="#64748B" text-anchor="middle">Redeems Token Once</text>
+
+          <!-- Arrow 3 -->
+          <line x1="630" y1="70" x2="710" y2="70" stroke="#F59E0B" stroke-width="2"/>
+          <text x="670" y="62" font-size="10" fill="#F59E0B" text-anchor="middle">3. Cast Vote</text>
+
+          <!-- Public Ledger -->
+          <rect x="720" y="40" width="130" height="60" rx="8" fill="#F1F5F9" stroke="#64748B" stroke-width="2"/>
+          <text x="785" y="68" font-size="13" font-weight="600" fill="#1E293B" text-anchor="middle">Anonymous Tally</text>
+          <text x="785" y="86" font-size="10" fill="#64748B" text-anchor="middle">Zero Identity Link</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Model 2: CipherBallot Variant B (Separated Participation & Encrypted Ballots) -->
+    <div>
+      <h3 style="font-size:1rem;font-weight:700;color:var(--navy);margin-bottom:0.5rem;">
+        Model 2: CipherBallot Variant B Architecture (Separated Database Records)
+      </h3>
+      <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">
+        A single atomic transaction inserts an anonymous AES-GCM ciphertext while recording participation in an isolated table.
+      </p>
+
+      <div style="overflow-x:auto;padding:1rem;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
+        <svg viewBox="0 0 860 160" style="width:100%;min-width:760px;font-family:Inter,sans-serif;">
+          <!-- Voter -->
+          <rect x="10" y="50" width="130" height="60" rx="8" fill="#EEF2FF" stroke="#4F46E5" stroke-width="2"/>
+          <text x="75" y="78" font-size="13" font-weight="600" fill="#1E293B" text-anchor="middle">Student Voter</text>
+          <text x="75" y="96" font-size="10" fill="#64748B" text-anchor="middle">Alice (Authenticated)</text>
+
+          <!-- Transaction Box -->
+          <rect x="220" y="15" width="400" height="130" rx="8" fill="#F8FAFC" stroke="#4F46E5" stroke-dasharray="4" stroke-width="1.5"/>
+          <text x="420" y="32" font-size="11" font-weight="700" fill="#4F46E5" text-anchor="middle">Atomic DB Transaction (All-or-Nothing Commit)</text>
+
+          <!-- Table 1: Participation -->
+          <rect x="240" y="45" width="170" height="50" rx="6" fill="#F0FDFA" stroke="#0D9488" stroke-width="1.5"/>
+          <text x="325" y="68" font-size="11" font-weight="600" fill="#1E293B" text-anchor="middle">participations</text>
+          <text x="325" y="84" font-size="9" fill="#0D9488" text-anchor="middle">(election_id, voter_id)</text>
+
+          <!-- Table 2: Encrypted Ballot -->
+          <rect x="430" y="45" width="170" height="50" rx="6" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5"/>
+          <text x="515" y="68" font-size="11" font-weight="600" fill="#1E293B" text-anchor="middle">encrypted_ballots</text>
+          <text x="515" y="84" font-size="9" fill="#F59E0B" text-anchor="middle">(uuid, nonce, AES-GCM)</text>
+
+          <!-- Table 3: Receipt -->
+          <rect x="335" y="102" width="170" height="35" rx="6" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.5"/>
+          <text x="420" y="124" font-size="10" font-weight="600" fill="#1E293B" text-anchor="middle">receipts: SHA-256 Digest</text>
+
+          <!-- Arrow into TX -->
+          <line x1="140" y1="80" x2="220" y2="80" stroke="#4F46E5" stroke-width="2"/>
+
+          <!-- Output Arrow -->
+          <line x1="620" y1="80" x2="690" y2="80" stroke="#4F46E5" stroke-width="2"/>
+
+          <!-- Public Verification -->
+          <rect x="700" y="50" width="150" height="60" rx="8" fill="#F1F5F9" stroke="#64748B" stroke-width="2"/>
+          <text x="775" y="78" font-size="12" font-weight="600" fill="#1E293B" text-anchor="middle">Public Bulletin Board</text>
+          <text x="775" y="96" font-size="10" fill="#64748B" text-anchor="middle">Verifiable Receipts</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side-by-Side Trade-off Table -->
+  <div class="card" style="padding:1.5rem;">
+    <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:1rem;color:var(--navy);">
+      <i class="bi bi-table"></i> Comprehensive Architectural Comparison
+    </h2>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Security &amp; Operational Dimension</th>
+            <th>Variant A: Single-Class Baseline</th>
+            <th>Variant B: CipherBallot Prototype (Default)</th>
+            <th>Variant C: Anonymous Token Model</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Privacy Level</strong></td>
+            <td>Low (Basic encrypted storage)</td>
+            <td>Moderate (Separated DB tables; no voter ID in ballot table)</td>
+            <td>High (Cryptographic blinding unlinks voter from ballot)</td>
+          </tr>
+          <tr>
+            <td><strong>Duplicate Prevention</strong></td>
+            <td>Application-level check</td>
+            <td>Strict database unique constraint on <code>(election_id, voter_id)</code></td>
+            <td>One-time token redemption / spent token registry</td>
+          </tr>
+          <tr>
+            <td><strong>Operational Complexity</strong></td>
+            <td>Minimal (Simple CRUD)</td>
+            <td>Moderate (AES-GCM, receipts, atomic transactions, Ed25519)</td>
+            <td>High (Blind signatures, two-phase protocols, token storage)</td>
+          </tr>
+          <tr>
+            <td><strong>Individual Auditability</strong></td>
+            <td>None</td>
+            <td>Verifiable receipts with SHA-256 bulletin board verification</td>
+            <td>Receipt token / bulletin board verification</td>
+          </tr>
+          <tr>
+            <td><strong>Linkability Risk</strong></td>
+            <td>High if tables unified</td>
+            <td>Residual timing / log correlation possible</td>
+            <td>Mathematically negligible if blind signatures correctly deployed</td>
+          </tr>
+          <tr>
+            <td><strong>Insider Threat Exposure</strong></td>
+            <td>High</td>
+            <td>Server holding AES key can decrypt; admin access to logs poses risk</td>
+            <td>Admin cannot link ballot even if holding private decryption key</td>
+          </tr>
+          <tr>
+            <td><strong>CipherBallot Implementation</strong></td>
+            <td><strong>Fully Implemented</strong> (Open active-voter eligibility + Hybrid RSA/AES-GCM)</td>
+            <td><strong>Fully Implemented</strong> (Roster eligibility + Hybrid RSA/AES-GCM + Verifiable Receipts)</td>
+            <td><strong>Fully Implemented</strong> (2-Phase Unlinked Anonymous Tokens + Hybrid RSA/AES-GCM)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Honest Disclosure -->
+  <div class="card" style="background:var(--bg-secondary);border-left:4px solid var(--info);padding:1.25rem;">
+    <h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.5rem;color:var(--navy);">
+      <i class="bi bi-info-circle"></i> Comparing All Three Variants Live in CipherBallot
+    </h4>
+    <p style="font-size:0.875rem;color:var(--text-muted);line-height:1.6;margin:0;">
+      CipherBallot supports <strong>Variant A</strong>, <strong>Variant B</strong>, and <strong>Variant C</strong> simultaneously per election:
+      Variant A demonstrates an encrypted single-class baseline; Variant B implements department eligibility rosters and SHA-256 verifiable receipts;
+      and Variant C implements two-phase anonymous token issuance (<code>participations</code> stores <code>token_issued</code> while <code>anonymous_tokens</code> stores only <code>SHA-256(token)</code> with zero voter ID).
+    </p>
+  </div>
+
+</div>
+{% endblock %}

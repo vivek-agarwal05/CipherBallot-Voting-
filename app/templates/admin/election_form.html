@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Configure: ' + election.title if election else 'New Election' }} — CipherBallot{% endblock %}
+{% block topbar_title %}{{ 'Configure Election' if election else 'Create Election' }}{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <a href="{{ url_for('admin.elections') }}" class="btn btn-ghost btn-sm" style="margin-bottom:0.5rem;">
+    &larr; Back to Elections List
+  </a>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 style="font-size:1.6rem;font-weight:700;margin:0 0 0.25rem 0;">
+        {{ election.title if election else 'Create New Election' }}
+      </h1>
+      {% if election %}
+        <div style="display:flex;gap:0.5rem;align-items:center;font-size:0.85rem;color:var(--text-muted);">
+          <span>Status: <span class="badge badge-{{ election.status }}" style="text-transform:capitalize;">{{ election.status }}</span></span>
+          <span>•</span>
+          <span>Variant: <strong>{{ election.variant }}</strong></span>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if election %}
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <a href="{{ url_for('admin.manage_eligibility', election_id=election.id) }}" class="btn btn-outline btn-sm">
+        <i class="bi bi-people"></i> Manage Voter Eligibility &amp; CSV
+      </a>
+      {% if election.status == 'closed' %}
+        <a href="{{ url_for('admin.tally_election_page', election_id=election.id) }}" class="btn btn-primary btn-sm">
+          <i class="bi bi-calculator"></i> Tally &amp; Publish Results
+        </a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div style="display:grid;gap:1.5rem;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));">
+  <!-- Core Details -->
+  <div class="card" style="padding:1.5rem;">
+    <h2 style="font-size:1.1rem;font-weight:600;margin-bottom:1rem;">Election Configuration</h2>
+    <form method="post" action="{{ url_for('admin.edit_election', election_id=election.id) if election else url_for('admin.new_election') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if election %}
+        <input type="hidden" name="action" value="update_details">
+      {% endif %}
+
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label for="title" style="font-weight:600;font-size:0.875rem;">Election Title <span style="color:var(--danger)">*</span></label>
+        <input type="text" class="form-control" id="title" name="title" required value="{{ election.title if election else '' }}" placeholder="e.g. CS Student Council Election 2024">
+      </div>
+
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label for="group_dept" style="font-weight:600;font-size:0.875rem;">Department or Cohort</label>
+        <input type="text" class="form-control" id="group_dept" name="group_dept" value="{{ election.group_dept if election else '' }}" placeholder="e.g. Computer Science Dept">
+      </div>
+
+      {% if not election %}
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label for="variant" style="font-weight:600;font-size:0.875rem;">Architecture Variant Profile</label>
+        <select class="form-control" id="variant" name="variant">
+          <option value="B" selected>Variant B: Eligibility Roster + AES-GCM Encrypted Ballots + Verifiable Receipts (Default)</option>
+          <option value="A">Variant A: Single-Class Election Baseline</option>
+          <option value="C">Variant C: Privacy-Focused Anonymous Token Model</option>
+        </select>
+        <small style="color:var(--text-muted);display:block;margin-top:0.25rem;">
+          Active project setting: <code>PROJECT_VARIANT = "{{ project_variant }}"</code>
+        </small>
+      </div>
+      {% endif %}
+
+      <div class="form-group" style="margin-bottom:1.25rem;">
+        <label for="description" style="font-weight:600;font-size:0.875rem;">Description</label>
+        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Provide background or rules for voters">{{ election.description if election else '' }}</textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary">
+        {{ 'Save Details' if election else 'Create Election' }}
+      </button>
+    </form>
+  </div>
+
+  {% if election %}
+  <!-- Candidates Management Box -->
+  <div class="card" style="padding:1.5rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h2 style="font-size:1.1rem;font-weight:600;margin:0;">Candidates ({{ election.candidates|length }})</h2>
+      {% if election.status != 'draft' %}
+        <span class="badge badge-warning" style="font-size:0.75rem;">Locked (Election Active)</span>
+      {% endif %}
+    </div>
+
+    {% if election.candidates %}
+    <ul style="list-style:none;padding:0;margin:0 0 1.25rem 0;">
+      {% for candidate in election.candidates %}
+      <li style="display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0;border-bottom:1px solid var(--border);">
+        <div>
+          <span style="font-weight:600;color:var(--navy);">{{ candidate.display_name }}</span>
+          {% if candidate.description %}
+            <div style="font-size:0.78rem;color:var(--text-muted);">{{ candidate.description }}</div>
+          {% endif %}
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <span class="badge {% if candidate.is_active %}badge-success{% else %}badge-draft{% endif %}" style="font-size:0.7rem;">
+            {{ 'Active' if candidate.is_active else 'Inactive' }}
+          </span>
+          {% if election.status == 'draft' %}
+          <form method="post" action="{{ url_for('admin.deactivate_candidate', election_id=election.id, candidate_id=candidate.id) }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-ghost btn-sm" style="font-size:0.75rem;padding:0.2rem 0.4rem;">
+              {{ 'Disable' if candidate.is_active else 'Enable' }}
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1rem;">No candidates added yet.</p>
+    {% endif %}
+
+    {% if election.status == 'draft' %}
+    <form method="post" action="{{ url_for('admin.edit_election', election_id=election.id) }}" style="border-top:1px solid var(--border);padding-top:1rem;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add_candidate">
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label style="font-size:0.8rem;font-weight:600;">Add Candidate Name:</label>
+        <input type="text" class="form-control" name="candidate_name" placeholder="Full Candidate Name" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <input type="text" class="form-control" name="candidate_desc" placeholder="Brief neutral description (optional)">
+      </div>
+      <button type="submit" class="btn btn-outline btn-sm">
+        <i class="bi bi-plus-circle"></i> Add Candidate
+      </button>
+    </form>
+    {% else %}
+    <small style="color:var(--text-muted);display:block;margin-top:0.5rem;">
+      Candidate configuration is frozen once voting begins to prevent election tampering.
+    </small>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

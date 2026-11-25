@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Manage Elections — CipherBallot{% endblock %}
+{% block topbar_title %}Elections Management{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">Elections Management</h1>
+      <p style="color:var(--text-muted);font-size:0.925rem;">
+        Configure election parameters, manage candidate rosters, import eligible voters, and control status transitions.
+      </p>
+    </div>
+    <div>
+      <a href="{{ url_for('admin.new_election') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg"></i> New Election
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Election</th>
+          <th>Department</th>
+          <th>Candidates</th>
+          <th>Eligible Voters</th>
+          <th>Ballots Cast</th>
+          <th>Status</th>
+          <th style="text-align:right;">Lifecycle Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for summary in summaries %}
+        {% set e = summary.election %}
+        <tr>
+          <td>
+            <a href="{{ url_for('admin.edit_election', election_id=e.id) }}" style="font-weight:600;color:var(--navy);text-decoration:none;">
+              {{ e.title }}
+            </a>
+            <div style="font-size:0.75rem;color:var(--text-muted);">Variant: <strong>{{ e.variant }}</strong></div>
+          </td>
+          <td>{{ e.group_dept or '—' }}</td>
+          <td>{{ summary.candidate_count }}</td>
+          <td>{{ summary.total_eligible }}</td>
+          <td>
+            <strong>{{ summary.total_voted }}</strong>
+            <span style="font-size:0.75rem;color:var(--text-muted);">({{ summary.turnout_pct }}%)</span>
+          </td>
+          <td>
+            <span class="badge badge-{{ e.status }}" style="text-transform:capitalize;">
+              {{ e.status }}
+            </span>
+          </td>
+          <td style="text-align:right;">
+            <div style="display:inline-flex;gap:0.35rem;">
+              <a href="{{ url_for('admin.edit_election', election_id=e.id) }}" class="btn btn-ghost btn-sm" title="Configure Election &amp; Candidates">
+                <i class="bi bi-gear"></i>
+              </a>
+
+              <a href="{{ url_for('admin.manage_eligibility', election_id=e.id) }}" class="btn btn-ghost btn-sm" title="Manage Eligible Voters">
+                <i class="bi bi-people"></i>
+              </a>
+
+              {% if e.status == 'draft' %}
+                <form method="post" action="{{ url_for('admin.change_election_status', election_id=e.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to open this election for voting?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="status" value="open">
+                  <button type="submit" class="btn btn-primary btn-sm" title="Open Election for Voting">
+                    <i class="bi bi-play-fill"></i> Open
+                  </button>
+                </form>
+              {% elif e.status == 'open' %}
+                <form method="post" action="{{ url_for('admin.change_election_status', election_id=e.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to close this election? No more votes can be cast once closed.');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="status" value="closed">
+                  <button type="submit" class="btn btn-warning btn-sm" title="Close Voting">
+                    <i class="bi bi-stop-fill"></i> Close
+                  </button>
+                </form>
+              {% elif e.status == 'closed' %}
+                <a href="{{ url_for('admin.tally_election_page', election_id=e.id) }}" class="btn btn-primary btn-sm" title="Tally &amp; Decrypt Ballots">
+                  <i class="bi bi-calculator"></i> Tally &amp; Publish
+                </a>
+              {% elif e.status == 'published' %}
+                <a href="{{ url_for('public.election_results', election_id=e.id) }}" class="btn btn-outline btn-sm" title="View Certified Outcome">
+                  <i class="bi bi-bar-chart"></i> Results
+                </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">
+            No elections configured yet. Click "New Election" to get started.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

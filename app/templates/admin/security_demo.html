@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Security Demonstration — CipherBallot{% endblock %}
+{% block topbar_title %}Security Attack Demonstrations{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <div style="display:inline-block;padding:0.25rem 0.65rem;background:var(--danger-light);color:var(--danger);border-radius:9999px;font-size:0.75rem;font-weight:700;margin-bottom:0.5rem;">
+    CSEG3040 MANDATORY &amp; CONTROLLED LAB EXPERIMENTS (5 TESTS)
+  </div>
+  <h1 style="font-size:1.65rem;font-weight:700;color:var(--navy);margin-bottom:0.25rem;">
+    Controlled Security &amp; Attack Demonstrator
+  </h1>
+  <p style="color:var(--text-muted);font-size:0.925rem;max-width:850px;line-height:1.5;">
+    Executes the 2 mandatory Problem #28 attacks (Duplicate Vote &amp; Ballot Modification) plus 3 CSEG3040-aligned security experiments covering Hybrid RSA-OAEP+AES-GCM, Ed25519 signatures, SHA-256 audit chains, and Unit V access control.
+  </p>
+</div>
+
+<!-- Run Demo Action Card -->
+<div class="card" style="margin-bottom:2rem;padding:1.5rem;border-left:4px solid var(--primary);">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin:0 0 0.25rem 0;">Execute All 5 Live Security Experiments</h3>
+      <p style="font-size:0.875rem;color:var(--text-muted);margin:0;">
+        Runs controlled attack simulations on isolated sandbox records without corrupting real election votes.
+      </p>
+    </div>
+    <form method="post" action="{{ url_for('admin.run_security_demo') }}" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary" style="background:var(--primary);display:flex;align-items:center;gap:0.5rem;">
+        <i class="bi bi-play-circle-fill"></i> Run All 5 Experiments Now
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- 5 Experiment Overview Cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(290px, 1fr));gap:1.25rem;margin-bottom:2rem;">
+  <div class="card" style="padding:1.25rem;border-top:3px solid var(--warning);">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.65rem;">
+      <span class="badge badge-warning">Exp 1 • Mandatory</span>
+      <h4 style="font-size:0.98rem;font-weight:600;margin:0;">Duplicate Vote Attempt</h4>
+    </div>
+    <p style="font-size:0.83rem;color:var(--text-muted);line-height:1.5;margin:0;">
+      Casts an initial ballot then submits a second vote by the same voter; verifies atomic rollback via <code>UNIQUE(election_id, voter_id)</code>.
+    </p>
+  </div>
+
+  <div class="card" style="padding:1.25rem;border-top:3px solid var(--danger);">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.65rem;">
+      <span class="badge badge-danger">Exp 2 • Mandatory</span>
+      <h4 style="font-size:0.98rem;font-weight:600;margin:0;">Hybrid Ballot Tamper Detection</h4>
+    </div>
+    <p style="font-size:0.83rem;color:var(--text-muted);line-height:1.5;margin:0;">
+      Unit II &amp; III: Flips 1 bit in AES-256-GCM ciphertext, GCM tag, and RSA-OAEP wrapped AES key; proves all 3 trigger rejection.
+    </p>
+  </div>
+
+  <div class="card" style="padding:1.25rem;border-top:3px solid var(--primary);">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.65rem;">
+      <span class="badge badge-primary">Exp 3 • Unit III</span>
+      <h4 style="font-size:0.98rem;font-weight:600;margin:0;">Ed25519 Signature &amp; Wrong Key</h4>
+    </div>
+    <p style="font-size:0.83rem;color:var(--text-muted);line-height:1.5;margin:0;">
+      Alters a signed result manifest and verifies a signature against a rogue/wrong Ed25519 public key; confirms immediate failure.
+    </p>
+  </div>
+
+  <div class="card" style="padding:1.25rem;border-top:3px solid var(--info);">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.65rem;">
+      <span class="badge" style="background:var(--info-light);color:var(--info);">Exp 4 • Unit IV</span>
+      <h4 style="font-size:0.98rem;font-weight:600;margin:0;">SHA-256 Audit Chain Tampering</h4>
+    </div>
+    <p style="font-size:0.83rem;color:var(--text-muted);line-height:1.5;margin:0;">
+      Modifies an event payload in a SHA-256 hash chain and proves the broken <code>prev_hash</code> link pinpoints the altered record.
+    </p>
+  </div>
+
+  <div class="card" style="padding:1.25rem;border-top:3px solid var(--success);">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.65rem;">
+      <span class="badge badge-success">Exp 5 • Unit V</span>
+      <h4 style="font-size:0.98rem;font-weight:600;margin:0;">Lockout &amp; Unauthorized Access</h4>
+    </div>
+    <p style="font-size:0.83rem;color:var(--text-muted);line-height:1.5;margin:0;">
+      Verifies temporary account lockout after 5 consecutive failed logins and proves unrostered voter access is denied.
+    </p>
+  </div>
+</div>
+
+<!-- Live Report Section -->
+{% if report %}
+<div class="card" style="margin-bottom:2rem;border-top:4px solid {% if report.all_passed %}var(--success){% else %}var(--danger){% endif %};padding:1.5rem;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.5rem;">
+    <div>
+      <h3 style="font-size:1.2rem;font-weight:700;margin:0 0 0.25rem 0;">Security Demonstration Report</h3>
+      <span style="font-size:0.8rem;color:var(--text-muted);">Executed at: {{ report.timestamp }}</span>
+    </div>
+    {% if report.all_passed %}
+      <span class="badge badge-success" style="font-size:0.9rem;padding:0.4rem 0.8rem;">
+        <i class="bi bi-shield-check"></i> ALL 5 EXPERIMENTS PASSED
+      </span>
+    {% else %}
+      <span class="badge badge-danger" style="font-size:0.9rem;padding:0.4rem 0.8rem;">
+        <i class="bi bi-shield-x"></i> DEFENSE DEFECT DETECTED
+      </span>
+    {% endif %}
+  </div>
+
+  <div style="display:grid;gap:1.25rem;">
+    {% for test in report.tests %}
+    <div style="border:1px solid var(--border);border-radius:6px;padding:1.25rem;background:var(--bg);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem;">
+        <h4 style="font-size:1rem;font-weight:700;margin:0;color:var(--navy);">
+          {{ test.name }}
+        </h4>
+        <span class="badge {% if test.status == 'PASS' %}badge-success{% else %}badge-danger{% endif %}" style="font-size:0.85rem;">
+          {{ test.status }}
+        </span>
+      </div>
+
+      <div style="display:grid;gap:0.4rem;font-size:0.85rem;margin-bottom:0.75rem;">
+        <div><strong>Security Requirement:</strong> {{ test.requirement }}</div>
+        <div><strong>Expected Behavior:</strong> <span style="color:var(--text-muted);">{{ test.expected }}</span></div>
+        {% if test.actual %}
+          <div><strong>Actual Result:</strong> <code style="color:{% if test.status == 'PASS' %}var(--success){% else %}var(--danger){% endif %};">{{ test.actual }}</code></div>
+        {% endif %}
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);padding:0.75rem;border-radius:4px;font-size:0.8rem;line-height:1.5;">
+        <strong>Execution Log Steps:</strong>
+        <ul style="margin:0.25rem 0 0 0;padding-left:1.2rem;color:var(--text-muted);">
+          {% for d in test.details %}
+            <li>{{ d }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Automated Pytest Reference -->
+<div class="card" style="background:var(--bg-secondary);padding:1.25rem;">
+  <h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.5rem;">
+    <i class="bi bi-terminal"></i> Command-Line Automated Test Suite
+  </h4>
+  <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.5rem;">
+    All 5 security experiments are also verified automatically via pytest:
+  </p>
+  <pre style="background:var(--navy);color:#f8fafc;padding:0.75rem;border-radius:4px;font-size:0.8rem;margin:0;overflow-x:auto;">pytest tests/ -v</pre>
+</div>
+{% endblock %}
