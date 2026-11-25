@@ -14,8 +14,8 @@
      - **Variant C** (*Privacy-First Anonymous Senate Poll*): Phase 1 claims a one-time token (`token_issued` logged); copy token -> open `/anonymous-cast/<id>` (even unauthenticated!) -> Phase 2 redeems token anonymously (`ballot.cast_anonymous` logged with zero `voter_id`) -> try reusing token $\rightarrow$ rejected!
 4. **Demonstrate All 5 Controlled Security Experiments (`/admin/security-demo`):**
    - Sign in as `admin` (`Admin@Demo123`), click **Run All 5 Experiments Now**, and walk through the live PASS report (Duplicate Vote, Hybrid RSA-OAEP+AES-GCM Bit-Flip, Ed25519 Wrong Public Key, SHA-256 Audit Chain Tamper, Lockout & Access Control).
-5. **Show Automated Pytest & Interactive Crypto Lab:**
-   - Open `/admin/crypto-lab` for live visual demos + run `pytest tests/ -v` in terminal (**37/37 passed**).
+5. **Show Automated Pytest & Variant Comparison:**
+   - Open `/variants` to walk through the architectural differences between A, B, and C + run `pytest tests/ -v` in terminal (**all tests passing**).
 6. **Show Wireshark HTTP vs. HTTPS Comparison** (using screenshots/captures from `docs/04_SECURITY_TESTING_AND_WIRESHARK_GUIDE.md`).
 
 ---

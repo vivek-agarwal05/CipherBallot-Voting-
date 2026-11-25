@@ -23,7 +23,7 @@
     {% if election %}
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
       <a href="{{ url_for('admin.manage_eligibility', election_id=election.id) }}" class="btn btn-outline btn-sm">
-        <i class="bi bi-people"></i> Manage Voter Eligibility &amp; CSV
+        <i class="bi bi-people"></i> Manage Voter Eligibility
       </a>
       {% if election.status == 'closed' %}
         <a href="{{ url_for('admin.tally_election_page', election_id=election.id) }}" class="btn btn-primary btn-sm">

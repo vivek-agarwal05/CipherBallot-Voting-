@@ -9,7 +9,7 @@ flowchart LR
     Flask --> Voter["Voter Blueprint (/voter)\nVariants A, B, C Casting"]
     Flask --> Admin["Admin Blueprint (/admin)\nLifecycle, Tally, 5 Security Demos"]
     Flask --> Public["Public Blueprint (/)\nBulletin Board, Verify Receipt, Variants"]
-    Flask --> API["REST / Crypto Lab API (/api/v1)"]
+    Flask --> API["JSON REST API (/api/v1)"]
 
     Voter --> Crypto["Security Layer (app/security/)\nHybrid RSA-OAEP + AES-256-GCM\nEd25519 | SHA-256 | Audit Chain"]
     Admin --> Crypto
@@ -102,23 +102,16 @@ All 11 tables and their privacy isolation boundaries:
 - `GET/POST /voter/elections/<id>/vote` — Variant A/B casting or Variant C Phase 1/2 token workflow
 - `GET /voter/receipt/<receipt_code>` — Printable verifiable receipt
 - `GET /voter/status` — Participation records
-- `GET/POST /voter/verify-receipt` — In-app receipt check
-- `GET /voter/crypto-lab` — 6-panel Interactive Cryptography Lab
 
 ### Admin (`/admin`)
 - `GET /admin/` — Election administration dashboard
 - `GET/POST /admin/elections`, `/new`, `/<id>/edit`, `/<id>/status` — Lifecycle management
-- `GET/POST /admin/elections/<id>/eligibility`, `/import` — Roster & bulk CSV import
+- `GET/POST /admin/elections/<id>/eligibility` — Individual eligibility roster management
 - `GET/POST /admin/elections/<id>/tally` — Hybrid RSA+AES-GCM decryption & Ed25519 signing
 - `GET /admin/users`, `POST /admin/registry/add`, `POST /admin/users/<id>/unlock` — User, Lockout & Institutional Registry control
 - `GET /admin/audit`, `POST /admin/audit/verify` — Hash-chained audit log inspector
 - `GET /admin/security-demo`, `POST /admin/security-demo/run` — Executes all 5 controlled security experiments
 
-### REST & Cryptography Lab API (`/api/v1`)
+### REST API (`/api/v1`)
 - `GET /api/v1/elections/` — Public list of open/published elections
 - `GET /api/v1/elections/<id>/results` — JSON signed results + Ed25519 validity status
-- `POST /api/v1/lab/hash-password`, `/verify-password` — Argon2id sandbox
-- `POST /api/v1/lab/encrypt-sample`, `/decrypt-sample`, `/tamper-demo` — AES-256-GCM sandbox
-- `POST /api/v1/lab/sha256` — SHA-256 avalanche effect sandbox
-- `POST /api/v1/lab/sign-sample`, `/verify-signature` — Ed25519 sandbox
-- `GET/POST /api/v1/lab/audit-chain-demo` — Hash-chain tamper simulation

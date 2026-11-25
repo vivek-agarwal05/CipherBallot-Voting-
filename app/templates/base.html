@@ -90,51 +90,51 @@
           </a>
         </li>
 
-        <!-- 2. Cast Vote -> Candidate selection and AES-256-GCM encrypted ballot submission -->
+        <!-- 2. Cast Vote -> Candidate selection and Hybrid RSA-OAEP + AES-256-GCM ballot submission -->
         <li class="sidebar-menu-item">
           <a href="{% if current_user.is_authenticated %}{% if current_user.is_admin %}{{ url_for('admin.elections') }}{% else %}{{ url_for('voter.elections') }}{% endif %}{% else %}{{ url_for('auth.login') }}{% endif %}" 
-             class="sidebar-nav-link {% if ('election' in cur_ep and 'turnout' not in cur_ep and 'bulletin' not in cur_ep) or cur_ep in ('voter.elections', 'voter.election_detail', 'voter.cast_vote', 'admin.elections', 'admin.new_election', 'admin.edit_election', 'admin.manage_candidates', 'admin.manage_eligibility') %}active{% endif %}"
-             title="Cast Vote — Candidate selection and AES-256-GCM encrypted ballot submission">
+             class="sidebar-nav-link {% if ('election' in cur_ep and 'bulletin' not in cur_ep) or cur_ep in ('voter.elections', 'voter.election_detail', 'voter.cast_vote', 'admin.elections', 'admin.new_election', 'admin.edit_election', 'admin.manage_eligibility') %}active{% endif %}"
+             title="Cast Vote — Candidate selection and encrypted ballot submission">
             <i class="bi bi-check2-square nav-icon"></i>
             <span>Cast Vote</span>
           </a>
         </li>
 
-        <!-- 3. My Receipts -> View and verify SHA-256 / Ed25519 voting receipts -->
+        <!-- 3. Verify Receipt -> View and verify SHA-256 voting receipts -->
         <li class="sidebar-menu-item">
-          <a href="{% if current_user.is_authenticated and not current_user.is_admin %}{{ url_for('voter.verify_receipt_page') }}{% else %}{{ url_for('public.receipt_verifier') }}{% endif %}" 
-             class="sidebar-nav-link {% if cur_ep in ('voter.verify_receipt_page', 'public.receipt_verifier', 'voter.voting_status', 'public.view_single_receipt', 'voter.show_receipt') %}active{% endif %}"
-             title="My Receipts — View and verify SHA-256 / Ed25519 voting receipts">
+          <a href="{{ url_for('public.receipt_verifier') }}" 
+             class="sidebar-nav-link {% if cur_ep in ('public.receipt_verifier', 'voter.voting_status', 'public.view_single_receipt', 'voter.show_receipt') %}active{% endif %}"
+             title="Verify Receipt — Check SHA-256 receipt digests on the bulletin board">
             <i class="bi bi-receipt nav-icon"></i>
-            <span>My Receipts</span>
+            <span>Verify Receipt</span>
           </a>
         </li>
 
-        <!-- 4. Cryptography Lab -> Interactive demos & Cryptographic Process Visualizer -->
+        <!-- 4. Variants A/B/C -> Architectural comparison of all 3 voting variants -->
         <li class="sidebar-menu-item">
-          <a href="{% if current_user.is_authenticated and current_user.is_admin %}{{ url_for('admin.crypto_lab') }}{% elif current_user.is_authenticated %}{{ url_for('voter.crypto_lab') }}{% else %}{{ url_for('admin.crypto_lab') }}{% endif %}" 
-             class="sidebar-nav-link {% if 'crypto_lab' in cur_ep %}active{% endif %}"
-             title="Cryptography Lab — Interactive demos (AES-GCM, SHA-256, Argon2id, Ed25519) & Visualizer">
-            <i class="bi bi-cpu nav-icon"></i>
-            <span>Cryptography Lab</span>
+          <a href="{{ url_for('public.variant_comparison') }}" 
+             class="sidebar-nav-link {% if cur_ep == 'public.variant_comparison' %}active{% endif %}"
+             title="Variants A/B/C — Compare Single-Class, Verifiable Receipt, and Anonymous Token models">
+            <i class="bi bi-diagram-3 nav-icon"></i>
+            <span>Variants A/B/C</span>
           </a>
         </li>
 
-        <!-- 5. Security Demo -> Mandatory Duplicate Voting and Ballot Modification Attack demonstrations -->
+        <!-- 5. Security Demo -> 5 CSEG3040 controlled security experiments -->
         <li class="sidebar-menu-item">
           <a href="{{ url_for('admin.security_demo') }}" 
              class="sidebar-nav-link {% if 'security_demo' in cur_ep %}active{% endif %}"
-             title="Security Demo — Duplicate Voting and Ballot Modification Attack demonstrations">
+             title="Security Demo — 5 CSEG3040 controlled security experiments">
             <i class="bi bi-shield-lock nav-icon"></i>
             <span>Security Demo</span>
           </a>
         </li>
 
-        <!-- 6. Results -> Election results and participation statistics -->
+        <!-- 6. Bulletin Board & Results -> Public digests and Ed25519 signed results -->
         <li class="sidebar-menu-item">
-          <a href="{% if current_user.is_authenticated and current_user.is_admin %}{{ url_for('admin.turnout') }}{% else %}{{ url_for('public.bulletin_board') }}{% endif %}" 
-             class="sidebar-nav-link {% if cur_ep in ('admin.turnout', 'public.bulletin_board', 'public.election_results') %}active{% endif %}"
-             title="Results — Election results and participation statistics">
+          <a href="{{ url_for('public.bulletin_board') }}" 
+             class="sidebar-nav-link {% if cur_ep in ('public.bulletin_board', 'public.election_results') %}active{% endif %}"
+             title="Results & Bulletin Board — Public digests and Ed25519 verified results">
             <i class="bi bi-bar-chart-line nav-icon"></i>
             <span>Results</span>
           </a>
@@ -153,8 +153,8 @@
         <!-- 8. About -> Project architecture, Variants A/B/C, and privacy model -->
         <li class="sidebar-menu-item">
           <a href="{{ url_for('public.privacy_guide') }}" 
-             class="sidebar-nav-link {% if cur_ep in ('public.privacy_guide', 'voter.privacy_guide', 'public.variant_comparison', 'admin.variant_comparison') %}active{% endif %}"
-             title="About — Project architecture, Variants A/B/C, and privacy model">
+             class="sidebar-nav-link {% if cur_ep == 'public.privacy_guide' %}active{% endif %}"
+             title="About — Project architecture, Hybrid Crypto, and privacy model">
             <i class="bi bi-info-circle nav-icon"></i>
             <span>About</span>
           </a>

@@ -59,7 +59,7 @@
                 Vote Now
               </a>
             {% elif item.already_voted %}
-              <a href="{{ url_for('voter.verify_receipt_page') }}" class="btn btn-outline btn-sm">
+              <a href="{{ url_for('public.receipt_verifier') }}" class="btn btn-outline btn-sm">
                 <i class="bi bi-receipt"></i> Verify Receipt
               </a>
             {% elif e.status == 'published' %}

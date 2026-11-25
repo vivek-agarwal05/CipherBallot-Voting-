@@ -39,5 +39,5 @@
 | **4** | Authentication, authorization & basic voting | `app/auth/`, `app/voter/`, `app/admin/`, PIN-verified registration, RBAC. |
 | **5** | Hybrid encryption, key management, hashing & signatures | `app/security/ballots.py`, `signatures.py`, `passwords.py`, `audit.py`, `scripts/init_keys.py`. |
 | **6** | TLS, audit logging & Variant A/B/C integration | `run.py` (`--https`/`--http`), `app/services/voting.py`, `app/templates/admin/variant_comparison.html`. |
-| **7** | Security testing & remediation | `/admin/security-demo` (5 experiments), `tests/` (37 passing pytest cases), `docs/04_SECURITY_TESTING_AND_WIRESHARK_GUIDE.md`. |
+| **7** | Security testing & remediation | `/admin/security-demo` (5 experiments), `tests/` (36 passing pytest cases), `docs/04_SECURITY_TESTING_AND_WIRESHARK_GUIDE.md`. |
 | **8** | Final presentation, live demo & individual viva | `docs/07_VIVA_AND_PRESENTATION_GUIDE.md`. |

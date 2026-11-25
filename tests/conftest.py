@@ -12,10 +12,6 @@ sys.path.insert(0, str(ROOT_DIR))
 keys_dir = ROOT_DIR / 'instance' / 'keys'
 keys_dir.mkdir(parents=True, exist_ok=True)
 
-ballot_key_file = keys_dir / 'ballot.key'
-if not ballot_key_file.exists():
-    ballot_key_file.write_bytes(os.urandom(32))
-
 rsa_priv_file = keys_dir / 'rsa_private.pem'
 rsa_pub_file = keys_dir / 'rsa_public.pem'
 if not rsa_priv_file.exists() or not rsa_pub_file.exists():
@@ -35,7 +31,6 @@ if not priv_key_file.exists() or not pub_key_file.exists():
     pub_key_file.write_bytes(priv.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
 
 os.environ.setdefault('SECRET_KEY', 'test-secret-key-32-chars-long-testing-purposes!')
-os.environ.setdefault('BALLOT_KEY_PATH', str(ballot_key_file))
 os.environ.setdefault('RSA_PRIVATE_KEY_PATH', str(rsa_priv_file))
 os.environ.setdefault('RSA_PUBLIC_KEY_PATH', str(rsa_pub_file))
 os.environ.setdefault('SIGNING_PRIVATE_KEY_PATH', str(priv_key_file))

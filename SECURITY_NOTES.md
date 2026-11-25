@@ -53,7 +53,7 @@ CipherBallot is an educational voting prototype designed to demonstrate foundati
 - **Capabilities:** Obtains a raw dump of `cipherballet.db`.
 - **Mitigations:**
   - Passwords cannot be reversed (Argon2id resistant to GPU/ASIC cracking).
-  - Ballots cannot be decrypted without `instance/keys/ballot.key` (stored outside DB).
+  - Ballots cannot be decrypted without `instance/keys/rsa_private.pem` (stored outside DB).
   - Encrypted ballot records contain no voter ID or student ID column.
 
 ### 3.4 Curious System Administrator (Insider Threat)
@@ -67,8 +67,9 @@ CipherBallot is an educational voting prototype designed to demonstrate foundati
 ## 4. Cryptographic Key Handling & Lifecycle
 
 ### 4.1 Key Storage:
-- **Ballot Key (`instance/keys/ballot.key`):** 32 cryptographically random bytes generated via `os.urandom(32)`. Permissions set to `0600` on POSIX systems. Excluded by `.gitignore`.
+- **RSA-2048 Keypair (`instance/keys/rsa_private.pem`, `rsa_public.pem`):** Used for hybrid RSA-OAEP (SHA-256) encapsulation of each ballot's unique ephemeral 256-bit AES-GCM key. Private key set to `0600` on POSIX systems and excluded by `.gitignore`.
 - **Signing Keypair (`instance/keys/signing_private.pem`, `signing_public.pem`):** Ed25519 keypair serialized to PEM format. Private key is never exposed via web routes, templates, or APIs.
+- **TLS Certificate (`instance/certs/cert.pem`, `key.pem`):** Self-signed local X.509 certificate for HTTPS transport encryption.
 - **Flask Session Key (`SECRET_KEY` in `.env`):** 64-character hex string generated via `secrets.token_hex(32)`.
 
 ### 4.2 Nonce Management in AES-GCM:

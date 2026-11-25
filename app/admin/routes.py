@@ -1,8 +1,6 @@
 """
 app/admin/routes.py — Admin blueprint routes (role='admin').
 """
-import io
-import csv
 import json
 import secrets
 import uuid
@@ -11,7 +9,7 @@ from datetime import datetime, timezone
 
 from flask import (
     Blueprint, abort, flash, redirect,
-    render_template, request, url_for, Response, jsonify
+    render_template, request, url_for, jsonify
 )
 from flask_login import current_user, login_required
 from sqlalchemy import func
@@ -25,7 +23,6 @@ from ..models import (
 )
 from ..security.audit import append_audit_event, verify_audit_chain
 from ..security.ballots import (
-    encrypt_ballot,
     encrypt_ballot_hybrid,
     decrypt_ballot,
     compute_ballot_digest,
@@ -228,16 +225,6 @@ def edit_election(election_id: int):
     )
 
 
-@admin_bp.route('/elections/<int:election_id>/candidates')
-@login_required
-def manage_candidates(election_id: int):
-    _require_admin()
-    election = db.session.get(Election, election_id)
-    if not election:
-        abort(404)
-    return render_template('admin/candidates.html', election=election)
-
-
 @admin_bp.route('/elections/<int:election_id>/candidates/add', methods=['POST'])
 @login_required
 def add_candidate(election_id: int):
@@ -330,136 +317,6 @@ def add_single_voter_eligibility(election_id: int):
     return redirect(url_for('admin.manage_eligibility', election_id=election_id))
 
 
-@admin_bp.route('/elections/<int:election_id>/eligibility/import', methods=['GET', 'POST'])
-@login_required
-def import_eligibility_csv(election_id: int):
-    _require_admin()
-    election = db.session.get(Election, election_id)
-    if not election:
-        abort(404)
-
-    preview_rows = []
-    summary_report = None
-
-    if request.method == 'POST':
-        action = request.form.get('action', 'preview')
-        csv_file = request.files.get('file')
-
-        if not csv_file or not csv_file.filename:
-            flash('Please select a CSV file to upload.', 'danger')
-            return render_template('admin/import_csv.html', election=election)
-
-        try:
-            content = csv_file.stream.read().decode('utf-8-sig')
-            reader = csv.reader(io.StringIO(content))
-            rows = list(reader)
-        except Exception as exc:
-            flash(f'Failed to parse CSV file: {exc}', 'danger')
-            return render_template('admin/import_csv.html', election=election)
-
-        if not rows:
-            flash('CSV file is empty.', 'warning')
-            return render_template('admin/import_csv.html', election=election)
-
-        # Validate header
-        headers = [h.strip().lower() for h in rows[0]]
-        username_idx = -1
-        for idx, col in enumerate(headers):
-            if col in ('username', 'student_id', 'id', 'voter_id'):
-                username_idx = idx
-                break
-
-        if username_idx == -1:
-            flash('CSV must contain a column named "username" or "student_id".', 'danger')
-            return render_template('admin/import_csv.html', election=election)
-
-        valid_voters = []
-        unknown_users = []
-        duplicate_entries = set()
-        seen = set()
-
-        for row_idx, row in enumerate(rows[1:], start=2):
-            if not row or len(row) <= username_idx:
-                continue
-            val = row[username_idx].strip()
-            if not val:
-                continue
-            if val in seen:
-                duplicate_entries.add(val)
-                continue
-            seen.add(val)
-
-            user = db.session.query(User).filter_by(username=val, role='voter').first()
-            if user:
-                valid_voters.append(user)
-            else:
-                unknown_users.append(val)
-
-        if action == 'confirm':
-            # Execute import
-            added_count = 0
-            for u in valid_voters:
-                existing = db.session.query(ElectionEligibility).filter_by(
-                    election_id=election_id, voter_id=u.id
-                ).first()
-                if existing:
-                    existing.status = 'eligible'
-                else:
-                    new_elig = ElectionEligibility(election_id=election_id, voter_id=u.id, status='eligible')
-                    db.session.add(new_elig)
-                added_count += 1
-            db.session.commit()
-
-            append_audit_event(
-                event_type='eligibility.imported',
-                actor_category='admin',
-                actor_ref=current_user.username,
-                payload={
-                    'election_id': election_id,
-                    'imported_count': added_count,
-                    'unknown_count': len(unknown_users)
-                }
-            )
-            flash(f'Successfully imported and updated eligibility for {added_count} voters.', 'success')
-            return redirect(url_for('admin.manage_eligibility', election_id=election_id))
-
-        # Preview mode
-        summary_report = {
-            'total_rows': len(rows) - 1,
-            'valid_count': len(valid_voters),
-            'unknown_count': len(unknown_users),
-            'duplicate_count': len(duplicate_entries),
-            'valid_sample': [u.username for u in valid_voters[:10]],
-            'unknown_sample': unknown_users[:10],
-            'duplicate_sample': list(duplicate_entries)[:10],
-        }
-
-    return render_template(
-        'admin/import_csv.html',
-        election=election,
-        summary_report=summary_report,
-    )
-
-
-@admin_bp.route('/eligibility/template')
-@login_required
-def download_csv_template():
-    """Download a pre-formatted CSV template for student voter import."""
-    _require_admin()
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['username', 'display_name', 'department'])
-    writer.writerow(['alice', 'Alice Smith', 'Computer Science'])
-    writer.writerow(['bob', 'Bob Jones', 'Computer Science'])
-    writer.writerow(['carol', 'Carol White', 'Computer Science'])
-    
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=voter_eligibility_template.csv'}
-    )
-
-
 # ---------------------------------------------------------------------------
 # Status Lifecycle & Tallying
 # ---------------------------------------------------------------------------
@@ -539,30 +396,6 @@ def tally_election_page(election_id: int):
 
 
 # ---------------------------------------------------------------------------
-# Turnout & Results Overview
-# ---------------------------------------------------------------------------
-
-@admin_bp.route('/turnout')
-@login_required
-def turnout():
-    _require_admin()
-    all_elections = db.session.query(Election).order_by(Election.created_at.desc()).all()
-    summaries = [get_election_summary(e.id) for e in all_elections]
-    return render_template('admin/turnout.html', summaries=summaries)
-
-
-# ---------------------------------------------------------------------------
-# Public Bulletin Board Admin View
-# ---------------------------------------------------------------------------
-
-@admin_bp.route('/bulletin-board')
-@login_required
-def bulletin_board_admin():
-    _require_admin()
-    return redirect(url_for('public.bulletin_board'))
-
-
-# ---------------------------------------------------------------------------
 # Audit & Integrity Center
 # ---------------------------------------------------------------------------
 
@@ -612,28 +445,6 @@ def verify_audit():
     else:
         flash(f"❌ TAMPER DETECTED: {result['message']}", 'danger')
     return redirect(url_for('admin.audit_log'))
-
-
-# ---------------------------------------------------------------------------
-# Cryptography Lab (Admin)
-# ---------------------------------------------------------------------------
-
-@admin_bp.route('/crypto-lab')
-@login_required
-def crypto_lab():
-    _require_admin()
-    return render_template('voter/crypto_lab.html')
-
-
-# ---------------------------------------------------------------------------
-# Variant Comparison
-# ---------------------------------------------------------------------------
-
-@admin_bp.route('/variant-comparison')
-@login_required
-def variant_comparison():
-    _require_admin()
-    return render_template('admin/variant_comparison.html')
 
 
 # ---------------------------------------------------------------------------

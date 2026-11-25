@@ -44,50 +44,50 @@ View the live side-by-side analysis at `/variants` (`app/templates/admin/variant
 ```text
 CipherBallot/
 ├── app/
-│   ├── __init__.py           # Flask application factory with error handlers and CLI
+│   ├── __init__.py           # Flask application factory with error handlers
 │   ├── config.py             # Config classes & PROJECT_VARIANT setting
 │   ├── extensions.py         # SQLAlchemy, CSRFProtect, Limiter, LoginManager
 │   ├── models.py             # Relational data schema (isolated tables)
-│   ├── commands.py           # Custom Flask CLI commands
-│   ├── auth/                 # Authentication blueprint & Argon2id login forms
+│   ├── auth/                 # Authentication blueprint, PIN registration & lockout
 │   │   ├── forms.py
 │   │   └── routes.py
-│   ├── voter/                # Voter dashboard, ballot casting, and receipt views
+│   ├── voter/                # Voter dashboard, Variant A/B/C voting, receipt views
 │   │   └── routes.py
-│   ├── admin/                # Administrator dashboard, tallying, and audit views
+│   ├── admin/                # Admin dashboard, tallying, audit, 5 security demos
 │   │   └── routes.py
-│   ├── public/               # Landing page, public bulletin board, receipt verifier
+│   ├── public/               # Landing, bulletin board, receipt verifier, variants
 │   │   └── routes.py
-│   ├── api/                  # REST endpoints for interactive Cryptography Lab
+│   ├── api/                  # REST endpoints for elections & signed results
 │   │   └── routes.py
 │   ├── security/             # Dedicated cryptographic helper library
 │   │   ├── passwords.py      # Argon2id hashing & verification
-│   │   ├── ballots.py        # AES-256-GCM encryption & SHA-256 digest calculation
+│   │   ├── ballots.py        # Hybrid RSA-OAEP + AES-256-GCM & SHA-256 digest
 │   │   ├── signatures.py     # Ed25519 result signing & verification
 │   │   ├── audit.py          # Append-only hash-chained audit log
 │   │   └── canonical.py      # RFC-compliant canonical JSON encoder
 │   ├── services/             # Core business logic
-│   │   ├── voting.py         # Atomic vote casting & eligibility checks
+│   │   ├── voting.py         # Multi-variant voting (A, B, C) & eligibility checks
 │   │   ├── elections.py      # Voter election list & summaries
 │   │   ├── tally.py          # Decryption verification & result publishing
 │   │   └── receipts.py       # Cryptographic receipt verification
 │   ├── templates/            # Jinja2 responsive templates
 │   │   ├── base.html         # Responsive layout with sidebar & dark mode
-│   │   ├── auth/             # Login template with credentials helper
+│   │   ├── auth/             # Login & PIN-verified registration templates
 │   │   ├── public/           # Landing, Bulletin Board, Verifier, Privacy Guide, Results
-│   │   ├── voter/            # Voter dashboard, cast ballot, receipts, Crypto Lab
-│   │   ├── admin/            # Dashboard, elections, candidates, eligibility, tally, demo
+│   │   ├── voter/            # Voter dashboard, Variant A/B/C cast ballot, receipts
+│   │   ├── admin/            # Dashboard, elections, eligibility, tally, security demo
 │   │   └── errors/           # 403, 404, 500 error pages
 │   └── static/
-│       ├── css/main.css      # 880+ lines of custom CSS tokens & styles
+│       ├── css/              # Theme CSS tokens & neumorphic sidebar
 │       └── js/               # Theme toggle and UI utilities
 ├── scripts/
-│   ├── init_keys.py          # Cryptographic keypair & secret key generator
-│   ├── seed_demo.py          # Demo users, elections, and candidate seeder
+│   ├── init_keys.py          # RSA-2048, Ed25519, X.509 TLS cert & .env generator
+│   ├── seed_demo.py          # Demo users, PIN registry, and Variant A/B/C elections
 │   └── reset_demo_data.py    # Database reset utility with confirmation
-├── tests/                    # 25 automated unit and integration tests
+├── tests/                    # 36 automated unit and integration tests
 │   ├── conftest.py
 │   ├── test_auth.py
+│   ├── test_registration.py
 │   ├── test_eligibility.py
 │   ├── test_duplicate_vote.py
 │   ├── test_ballot_encryption.py
@@ -95,9 +95,11 @@ CipherBallot/
 │   ├── test_receipts.py
 │   ├── test_signatures.py
 │   ├── test_audit_chain.py
+│   ├── test_variants.py
 │   └── test_election_lifecycle.py
 ├── instance/
-│   ├── keys/                 # Ignored by Git (ballot.key, Ed25519 PEM keys)
+│   ├── keys/                 # Ignored by Git (RSA-2048 & Ed25519 PEM keys)
+│   ├── certs/                # Ignored by Git (Self-signed X.509 TLS cert/key)
 │   └── cipherballet.db       # Local SQLite database (ignored by Git)
 ├── .env                      # Local secret variables (ignored by Git)
 ├── .env.example              # Template environment file
@@ -181,9 +183,7 @@ Open your browser to: **`http://127.0.0.1:5000/`**
 1. Sign in as `admin` with password `Admin@Demo123`.
 2. Open **Elections** in the sidebar.
 3. You can create a new election draft, add candidates, and configure voter rosters.
-4. Click **Manage Voter Eligibility & CSV** on an election:
-   - Grant or revoke voter eligibility individually.
-   - Bulk import a student CSV using the downloadable template (`/admin/eligibility/template`).
+4. Click **Manage Voter Eligibility** on an election to grant or revoke voter eligibility individually.
 5. Change election status: **Draft → Open**. Voters can now cast ballots.
 6. When voting concludes, click **Close Election**.
 7. Click **Tally & Publish**:
@@ -207,21 +207,9 @@ Navigate to **Security Demo** (`/admin/security-demo`) and click **Run All 5 Exp
 
 ---
 
-## 9. Interactive Cryptography Lab
+## 9. Automated Test Suite
 
-Accessible in the sidebar via **Cryptography Lab** (`/voter/crypto-lab` or `/admin/crypto-lab`):
-1. **Argon2id Password Hashing:** Enter a password, generate a hash, benchmark execution time (ms), and verify correct/wrong passwords.
-2. **AES-256-GCM Encryption:** Enter laboratory text, observe the generated 96-bit random nonce, ciphertext, and 128-bit authentication tag in hex. Decrypt and verify.
-3. **Tamper Detection Sandbox:** Flip a bit in sample ciphertext and observe the live `InvalidTag` rejection.
-4. **SHA-256 Digest & Avalanche Effect:** Hash sample strings and observe how modifying 1 character completely alters all 64 hex characters.
-5. **Ed25519 Digital Signatures:** Canonically encode and digitally sign election result manifests. Verify validity, then tamper with vote counts to see signature failure.
-6. **Audit Hash Chain:** Inspect a 3-event chain (`prev_hash || payload`). Click **Tamper Event #2** to observe how the hash chain detects historical manipulation.
-
----
-
-## 10. Automated Test Suite
-
-Run the full automated test suite containing **37 tests**:
+Run the full automated test suite containing **36 tests**:
 ```bash
 python -m pytest tests/ -v
 ```

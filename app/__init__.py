@@ -95,12 +95,6 @@ def create_app(config_name: str | None = None) -> Flask:
         return render_template('errors/500.html'), 500
 
     # ------------------------------------------------------------------ #
-    # CLI commands                                                         #
-    # ------------------------------------------------------------------ #
-    from .commands import register_commands
-    register_commands(app)
-
-    # ------------------------------------------------------------------ #
     # Template context processor — inject variant into every template     #
     # ------------------------------------------------------------------ #
     @app.context_processor

@@ -4,13 +4,12 @@ scripts/init_keys.py — Generate all cryptographic secrets & TLS certificate fo
 
 Generates:
   1. SECRET_KEY                           — 256-bit Flask session secret (hex)
-  2. instance/keys/ballot.key             — 256-bit AES key (legacy / fallback)
-  3. instance/keys/rsa_private.pem        — RSA-2048 private key (for hybrid key unwrapping)
-  4. instance/keys/rsa_public.pem         — RSA-2048 public key  (for hybrid key wrapping)
-  5. instance/keys/signing_private.pem    — Ed25519 private key  (for tally certification)
-  6. instance/keys/signing_public.pem     — Ed25519 public key
-  7. instance/certs/cert.pem & key.pem    — Self-signed X.509 TLS certificate (localhost)
-  8. .env                                 — Environment variable file for Flask
+  2. instance/keys/rsa_private.pem        — RSA-2048 private key (for hybrid key unwrapping)
+  3. instance/keys/rsa_public.pem         — RSA-2048 public key  (for hybrid key wrapping)
+  4. instance/keys/signing_private.pem    — Ed25519 private key  (for tally certification)
+  5. instance/keys/signing_public.pem     — Ed25519 public key
+  6. instance/certs/cert.pem & key.pem    — Self-signed X.509 TLS certificate (localhost)
+  7. .env                                 — Environment variable file for Flask
 
 Usage:
     python scripts/init_keys.py                  # Abort if .env already exists
@@ -129,30 +128,15 @@ def main(force: bool = False, ensure_missing: bool = False) -> None:
                 f'.env already exists at {env_path}.\n'
                 '       Pass --ensure-missing to add only missing keys/certs, or --force to overwrite all.'
             )
-        ballot_key = keys_dir / 'ballot.key'
-        if ballot_key.exists():
-            _abort(
-                f'Ballot key already exists at {ballot_key}.\n'
-                '       Pass --ensure-missing or --force.'
-            )
 
     keys_dir.mkdir(parents=True, exist_ok=True)
     certs_dir.mkdir(parents=True, exist_ok=True)
     _ok(f'Keys directory: {keys_dir}')
 
-    # 1. AES-256 fallback key
-    ballot_key_path = keys_dir / 'ballot.key'
-    if force or not ballot_key_path.exists():
-        ballot_key_path.write_bytes(os.urandom(32))
-        ballot_key_path.chmod(0o600)
-        _ok(f'Ballot key: {ballot_key_path} (32 bytes, mode 0600)')
-    else:
-        _info(f'[skip] Ballot key exists: {ballot_key_path}')
-
-    # 2. RSA-2048 keypair (Hybrid Encryption)
+    # 1. RSA-2048 keypair (Hybrid Encryption)
     _generate_rsa_keypair(keys_dir, overwrite=force)
 
-    # 3. Ed25519 signing keypair
+    # 2. Ed25519 signing keypair
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     from cryptography.hazmat.primitives.serialization import (
         Encoding, NoEncryption, PrivateFormat, PublicFormat,
@@ -175,10 +159,10 @@ def main(force: bool = False, ensure_missing: bool = False) -> None:
     else:
         _info(f'[skip] Ed25519 keypair exists: {private_key_path}')
 
-    # 4. Self-signed X.509 TLS certificate
+    # 3. Self-signed X.509 TLS certificate
     _generate_self_signed_tls_cert(certs_dir, overwrite=force)
 
-    # 5. .env file
+    # 4. .env file
     if force or not env_path.exists():
         secret_key = secrets.token_hex(32)
         env_content = f"""\
@@ -188,7 +172,6 @@ def main(force: bool = False, ensure_missing: bool = False) -> None:
 SECRET_KEY={secret_key}
 DATABASE_URL=sqlite:///cipherballet.db
 
-BALLOT_KEY_PATH=instance/keys/ballot.key
 RSA_PRIVATE_KEY_PATH=instance/keys/rsa_private.pem
 RSA_PUBLIC_KEY_PATH=instance/keys/rsa_public.pem
 SIGNING_PRIVATE_KEY_PATH=instance/keys/signing_private.pem

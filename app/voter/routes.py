@@ -12,7 +12,6 @@ from ..services.voting import (
     cast_vote_with_token,
 )
 from ..services.elections import list_voter_elections
-from ..services.receipts import verify_receipt
 
 voter_bp = Blueprint('voter', __name__)
 
@@ -190,41 +189,4 @@ def voting_status():
     """My Voting Status across all institutional elections."""
     _require_voter()
     elections_data = list_voter_elections(current_user.id)
-    
-    # Fetch recent receipts for this voter (by cross-referencing participation elections, though receipt has no voter_id)
-    # Note: To preserve voter privacy, receipts do not store voter_id.
-    # Voters are instructed to store or verify their receipt code on the bulletin board.
     return render_template('voter/voting_status.html', elections_data=elections_data)
-
-
-@voter_bp.route('/verify-receipt', methods=['GET', 'POST'])
-@login_required
-def verify_receipt_page():
-    """In-app receipt verification."""
-    _require_voter()
-    receipt_code = request.args.get('code', '').strip()
-    result = None
-
-    if request.method == 'POST':
-        receipt_code = request.form.get('receipt_code', '').strip()
-
-    if receipt_code:
-        result = verify_receipt(receipt_code)
-
-    return render_template('voter/verify_receipt.html', receipt_code=receipt_code, result=result)
-
-
-@voter_bp.route('/crypto-lab')
-@login_required
-def crypto_lab():
-    """Interactive Cryptography Lab for students."""
-    _require_voter()
-    return render_template('voter/crypto_lab.html')
-
-
-@voter_bp.route('/privacy-guide')
-@login_required
-def privacy_guide():
-    """Security & Privacy Guide."""
-    _require_voter()
-    return redirect(url_for('public.privacy_guide'))

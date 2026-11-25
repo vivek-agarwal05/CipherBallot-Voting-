@@ -35,7 +35,7 @@
 ### C. Database Exfiltration / Tampering Attacker
 - **Threat:** Obtains `instance/cipherballet.db` or flips bits in stored ciphertexts, receipts, tallies, or audit events.
 - **Mitigations:**
-  - Keys (`rsa_private.pem`, `signing_private.pem`, `ballot.key`) live outside the database in `instance/keys/` (`0600` permissions, excluded by `.gitignore`).
+  - Keys (`rsa_private.pem`, `signing_private.pem`) and TLS keys (`instance/certs/key.pem`) live outside the database (`0600` permissions, excluded by `.gitignore`).
   - Flipping 1 bit in ciphertext/tag triggers `InvalidTag`; flipping 1 bit in the wrapped AES key fails RSA-OAEP decryption.
   - Modifying stored ballot fields invalidates the receipt's `SHA-256` digest on the Public Bulletin Board.
   - Altering any audit event breaks `verify_audit_chain()` at the exact tampered row ID.

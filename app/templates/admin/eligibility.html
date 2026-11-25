@@ -15,14 +15,6 @@
         Control which authenticated students hold voting privileges in this specific poll.
       </p>
     </div>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <a href="{{ url_for('admin.import_eligibility_csv', election_id=election.id) }}" class="btn btn-primary btn-sm">
-        <i class="bi bi-file-earmark-spreadsheet"></i> Bulk Import CSV
-      </a>
-      <a href="{{ url_for('admin.download_csv_template') }}" class="btn btn-outline btn-sm">
-        <i class="bi bi-download"></i> Download CSV Template
-      </a>
-    </div>
   </div>
 </div>
 

@@ -1,10 +1,10 @@
 # 04. Security Testing Report & Wireshark Lab Guide
 
 ## 1. Automated Unit & Integration Test Results
-All **37 automated tests** in `tests/` pass (`pytest tests/ -v`):
+All **36 automated tests** in `tests/` pass (`pytest tests/ -v`):
 - `test_auth.py` (7 tests): Argon2id hashing/verification, invalid login error masking, RBAC `403` enforcement, **5-strike temporary account lockout**.
 - `test_registration.py` (6 tests): Institutional ID verification, **Secret PIN ownership proof rejection**, unlisted ID rejection, claimed ID anti-Sybil block, department mismatch rejection, password complexity check.
-- `test_ballot_encryption.py` (4 tests): **Hybrid RSA-2048 OAEP + AES-256-GCM** encryption/decryption, ephemeral AES key & nonce uniqueness, schema isolation checks.
+- `test_ballot_encryption.py` (3 tests): **Hybrid RSA-2048 OAEP + AES-256-GCM** encryption/decryption, ephemeral AES key & nonce uniqueness, schema isolation checks.
 - `test_ballot_tampering.py` (4 tests): Bit-flipped ciphertext (`InvalidTag`), bit-flipped GCM tag (`InvalidTag`), AAD slot-transplantation rejection, **RSA-OAEP wrapped key bit-flip rejection**.
 - `test_duplicate_vote.py` (1 test): Atomic DB uniqueness rollback on duplicate voting.
 - `test_variants.py` (3 tests): **Variant A** single-class open voting, **Variant C** two-phase anonymous token protocol & double-spend rejection, and **all 5 live Security Demo experiments**.

@@ -140,13 +140,13 @@
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
   <div class="card" style="padding:1.25rem;border-left:4px solid var(--info);">
     <h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.35rem;">
-      <i class="bi bi-cpu"></i> Cryptography Interactive Lab
+      <i class="bi bi-diagram-3"></i> Architectural Variants (A / B / C)
     </h4>
     <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">
-      Explore Argon2id password hashing, AES-256-GCM authenticated encryption, live bit-flip tamper detection, and Ed25519 signatures.
+      Compare Single-Class (A), Verifiable Receipt (B), and Anonymous Token (C) voting architectures side-by-side.
     </p>
-    <a href="{{ url_for('voter.crypto_lab') }}" class="btn btn-outline btn-sm">
-      Open Cryptography Lab &rarr;
+    <a href="{{ url_for('public.variant_comparison') }}" class="btn btn-outline btn-sm">
+      Compare Variants &rarr;
     </a>
   </div>
 
@@ -157,7 +157,7 @@
     <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">
       Already voted? Use your 43-character receipt code to verify your encrypted ballot's digest on the public bulletin board.
     </p>
-    <a href="{{ url_for('voter.verify_receipt_page') }}" class="btn btn-outline btn-sm">
+    <a href="{{ url_for('public.receipt_verifier') }}" class="btn btn-outline btn-sm">
       Check Receipt Code &rarr;
     </a>
   </div>

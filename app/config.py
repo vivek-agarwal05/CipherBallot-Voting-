@@ -46,10 +46,6 @@ class Config:
     # ------------------------------------------------------------------ #
     # Cryptographic Key & Certificate Paths                               #
     # ------------------------------------------------------------------ #
-    BALLOT_KEY_PATH: str = (
-        os.environ.get('BALLOT_KEY_PATH')
-        or str(Path('instance/keys/ballot.key'))
-    )
     RSA_PRIVATE_KEY_PATH: str = (
         os.environ.get('RSA_PRIVATE_KEY_PATH')
         or str(Path('instance/keys/rsa_private.pem'))
@@ -91,7 +87,6 @@ class TestingConfig(Config):
     RATELIMIT_ENABLED: bool = False
     SQLALCHEMY_DATABASE_URI: str = 'sqlite:///:memory:'
     # Tests supply their own key material or mock it
-    BALLOT_KEY_PATH: str = 'instance/keys/ballot.key'
     RSA_PRIVATE_KEY_PATH: str = 'instance/keys/rsa_private.pem'
     RSA_PUBLIC_KEY_PATH: str = 'instance/keys/rsa_public.pem'
     SIGNING_PRIVATE_KEY_PATH: str = 'instance/keys/signing_private.pem'

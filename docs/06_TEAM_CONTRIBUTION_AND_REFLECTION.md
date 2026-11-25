@@ -12,7 +12,7 @@
 | **Member 2** `[Name / Roll No]` | **Hybrid Cryptography, Keys & Digital Signatures** | `app/security/ballots.py`, `app/security/signatures.py`, `app/security/canonical.py`, `scripts/init_keys.py`, `tests/test_ballot_encryption.py`, `test_ballot_tampering.py`, `test_signatures.py` | Hybrid encryption (ephemeral AES-256-GCM key + RSA-2048 OAEP wrap), 96-bit random nonce safety, GHASH tag & AAD binding, Ed25519 deterministic signatures, canonical JSON. |
 | **Member 3** `[Name / Roll No]` | **Database Design & Variant A/B/C Voting Engine** | `app/models.py`, `app/services/voting.py`, `app/services/elections.py`, `app/services/tally.py`, `app/services/receipts.py`, `tests/test_variants.py`, `test_duplicate_vote.py`, `test_eligibility.py`, `test_receipts.py` | Table separation (`participations` vs `encrypted_ballots` vs `anonymous_tokens`), atomic `UNIQUE` constraints, Variant A vs. B vs. C workflows, SHA-256 ballot digests. |
 | **Member 4** `[Name / Roll No]` | **Audit Chain, TLS/Network Security & 5 Security Experiments** | `app/security/audit.py`, `run.py`, `app/config.py`, `app/admin/routes.py` (Security Demo & Audit), `app/templates/admin/security_demo.html`, `tests/test_audit_chain.py`, `docs/04_SECURITY_TESTING_AND_WIRESHARK_GUIDE.md` | Append-only SHA-256 hash chain, self-signed X.509 certificate & HTTPS/TLS flags, Wireshark HTTP vs. TLS comparison, all 5 controlled attack demonstrations. |
-| **Member 5** `[Name / Roll No]` | **UI/UX, Public Transparency, Crypto Lab & Technical Docs** | `app/templates/base.html`, `app/templates/voter/*`, `app/templates/public/*`, `app/templates/admin/variant_comparison.html`, `users.html`, `app/api/routes.py`, `scripts/seed_demo.py`, `docs/` | Public Bulletin Board & receipt verifier, Interactive 6-panel Cryptography Lab, Dark/Light accessible UI, Threat Model, Architecture & Limitations analysis. |
+| **Member 5** `[Name / Roll No]` | **UI/UX, Public Transparency, REST API & Technical Docs** | `app/templates/base.html`, `app/templates/voter/*`, `app/templates/public/*`, `app/templates/admin/variant_comparison.html`, `users.html`, `app/api/routes.py`, `scripts/seed_demo.py`, `docs/` | Public Bulletin Board & receipt verifier, Variant Comparison UI, Dark/Light accessible UI, REST results API, Threat Model, Architecture & Limitations analysis. |
 
 ---
 
@@ -38,7 +38,7 @@
 - **Key Challenge Solved:** Configuring Flask-Limiter rate limits alongside 5-strike account lockout so brute-force tests and live classroom demos behave predictably without IP collisions.
 - **Takeaway:** Verified firsthand via Wireshark how plaintext HTTP exposes credentials and session cookies while TLS protects all application data inside encrypted records.
 
-### Member 5 Reflection — Transparency Interfaces, Crypto Lab & Documentation
-- **Contribution:** Integrated the Public Bulletin Board, Receipt Verifier, Variant Comparison visualizations, Interactive Cryptography Lab, and complete threat model/architecture documentation.
+### Member 5 Reflection — Transparency Interfaces, REST API & Documentation
+- **Contribution:** Integrated the Public Bulletin Board, Receipt Verifier, Variant Comparison visualizations, JSON results API, and complete threat model/architecture documentation.
 - **Key Challenge Solved:** Presenting complex cryptographic steps (nonces, AAD, digests, hash chains, and Variant A/B/C differences) clearly to both voters and technical evaluators.
 - **Takeaway:** Learned how clear threat modeling and honest limitation disclosure are as critical to security engineering as the cryptography itself.
