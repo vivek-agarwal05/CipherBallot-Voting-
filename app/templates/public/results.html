@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Certified Results — {{ election.title }}{% endblock %}
+{% block topbar_title %}Certified Results: {{ election.title }}{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
+        <span class="badge badge-published" style="text-transform:uppercase;">Certified &amp; Published</span>
+        <span class="badge" style="background:var(--primary-light);color:var(--primary-dark);">Variant {{ election.variant }}</span>
+      </div>
+      <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">{{ election.title }}</h1>
+      <p style="color:var(--text-muted);font-size:0.9rem;">
+        {{ election.group_dept or 'Institutional Election' }} • Official Certified Outcome
+      </p>
+    </div>
+    <div>
+      {% if signature_valid %}
+        <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.4rem 0.8rem;background:var(--success-light);color:#065f46;border-radius:6px;font-weight:600;font-size:0.875rem;">
+          <i class="bi bi-shield-check" style="font-size:1.1rem;"></i> Ed25519 Signature Verified Valid
+        </div>
+      {% else %}
+        <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.4rem 0.8rem;background:var(--danger-light);color:#991b1b;border-radius:6px;font-weight:600;font-size:0.875rem;">
+          <i class="bi bi-shield-x" style="font-size:1.1rem;"></i> Signature Invalid or Unverified
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if result_data %}
+<!-- Turnout Summary Metrics -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem;margin-bottom:2rem;">
+  <div class="card" style="padding:1.25rem;text-align:center;">
+    <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Eligible Voters</span>
+    <div style="font-size:1.75rem;font-weight:700;color:var(--text);margin-top:0.25rem;">
+      {{ result_data.get('total_eligible', '—') }}
+    </div>
+  </div>
+
+  <div class="card" style="padding:1.25rem;text-align:center;">
+    <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Ballots Cast</span>
+    <div style="font-size:1.75rem;font-weight:700;color:var(--primary);margin-top:0.25rem;">
+      {{ result_data.get('total_participated', result_data.get('total_ballots', '—')) }}
+    </div>
+  </div>
+
+  <div class="card" style="padding:1.25rem;text-align:center;">
+    <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Valid Ballots Decrypted</span>
+    <div style="font-size:1.75rem;font-weight:700;color:var(--success);margin-top:0.25rem;">
+      {{ result_data.get('valid_ballots', '—') }}
+    </div>
+  </div>
+
+  <div class="card" style="padding:1.25rem;text-align:center;">
+    <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Turnout</span>
+    <div style="font-size:1.75rem;font-weight:700;color:var(--text);margin-top:0.25rem;">
+      {{ result_data.get('turnout_percentage', '—') }}%
+    </div>
+  </div>
+</div>
+
+<!-- Candidate Tally Table & Chart -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
+  <div class="card" style="padding:1.5rem;">
+    <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:1rem;">Candidate Vote Counts</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Candidate</th>
+            <th style="text-align:right;">Votes</th>
+            <th style="text-align:right;">Percentage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if result_data.get('candidate_results') %}
+            {% for c in result_data.candidate_results %}
+            <tr>
+              <td>
+                <strong>{{ c.display_name }}</strong>
+                {% if c.description %}
+                  <div style="font-size:0.75rem;color:var(--text-muted);">{{ c.description }}</div>
+                {% endif %}
+              </td>
+              <td style="text-align:right;font-weight:600;">{{ c.votes }}</td>
+              <td style="text-align:right;">{{ c.vote_percentage }}%</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            {% for cid_str, count in result_data.get('tally', {}).items() %}
+            <tr>
+              <td>Candidate ID {{ cid_str }}</td>
+              <td style="text-align:right;font-weight:600;">{{ count }}</td>
+              <td style="text-align:right;">—</td>
+            </tr>
+            {% endfor %}
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="padding:1.5rem;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+    <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:1rem;align-self:flex-start;">Vote Distribution</h3>
+    <div style="width:100%;max-width:320px;height:240px;">
+      <canvas id="resultsChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Digital Signature Verification Certificate -->
+<div class="card" style="border-left:4px solid var(--primary);padding:1.5rem;">
+  <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
+    <i class="bi bi-patch-check-fill" style="color:var(--primary);font-size:1.5rem;"></i>
+    <div>
+      <h3 style="font-size:1.05rem;font-weight:600;margin:0;">Ed25519 Cryptographic Certification</h3>
+      <span style="font-size:0.8rem;color:var(--text-muted);">RFC 8032 Deterministic Edwards-Curve Digital Signature Algorithm</span>
+    </div>
+  </div>
+
+  <div style="display:grid;gap:0.75rem;font-size:0.85rem;margin-top:1rem;">
+    <div>
+      <span style="color:var(--text-muted);display:block;margin-bottom:0.25rem;">Ed25519 Digital Signature (Hex):</span>
+      <code style="word-break:break-all;display:block;background:var(--bg-secondary);padding:0.6rem;border-radius:4px;font-size:0.8rem;color:var(--navy);">
+        {{ published.signature_hex }}
+      </code>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <div>
+        <span style="color:var(--text-muted);display:block;margin-bottom:0.25rem;">Signer Public Key ID:</span>
+        <code style="display:block;background:var(--bg-secondary);padding:0.4rem;border-radius:4px;font-size:0.8rem;">
+          {{ published.public_key_id }}
+        </code>
+      </div>
+      <div>
+        <span style="color:var(--text-muted);display:block;margin-bottom:0.25rem;">Published Timestamp:</span>
+        <div style="padding:0.4rem 0;color:var(--text);">
+          {{ published.published_at.strftime('%Y-%m-%d %H:%M:%S UTC') if published.published_at else '—' }}
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:0.8rem;color:var(--text-muted);line-height:1.5;margin-top:0.5rem;padding-top:0.75rem;border-top:1px solid var(--border);">
+      <strong>Cryptographic Interpretation:</strong>
+      This digital signature proves that the canonical JSON document representing these exact election totals was signed by the holder of the institution's Ed25519 private key.
+      Any modification to candidate vote counts or metadata would immediately invalidate this signature.
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="card" style="text-align:center;padding:3rem 1.5rem;">
+  <p style="color:var(--text-muted);">Results for this election are not certified yet.</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if result_data %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const ctx = document.getElementById('resultsChart');
+  if (!ctx) return;
+  
+  {% if result_data.get('candidate_results') %}
+    const labels = {{ result_data.candidate_results | map(attribute='display_name') | list | tojson }};
+    const votes = {{ result_data.candidate_results | map(attribute='votes') | list | tojson }};
+  {% else %}
+    const labels = Object.keys({{ result_data.get('tally', {}) | tojson }}).map(id => 'Candidate ' + id);
+    const votes = Object.values({{ result_data.get('tally', {}) | tojson }});
+  {% endif %}
+
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: votes,
+        backgroundColor: ['#4F46E5', '#0D9488', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6'],
+        borderWidth: 2,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Inter', size: 11 } } }
+      }
+    }
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

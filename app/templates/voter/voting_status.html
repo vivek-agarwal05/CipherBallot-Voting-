@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}My Voting Status — CipherBallot{% endblock %}
+{% block topbar_title %}My Voting Status{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">My Participation Records</h1>
+  <p style="color:var(--text-muted);font-size:0.925rem;">
+    Review your eligibility and casting status across all institutional elections.
+  </p>
+</div>
+
+<div class="card" style="margin-bottom:2rem;">
+  <div class="card-header">
+    <h3 style="font-size:1.05rem;font-weight:600;margin:0;">Election Participation Table</h3>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Election</th>
+          <th>Department</th>
+          <th>Election Status</th>
+          <th>Eligibility</th>
+          <th>Participation Status</th>
+          <th style="text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in elections_data %}
+        {% set e = item.election %}
+        <tr>
+          <td style="font-weight:600;color:var(--navy);">{{ e.title }}</td>
+          <td>{{ e.group_dept or 'Institutional' }}</td>
+          <td>
+            <span class="badge badge-{{ e.status }}" style="text-transform:capitalize;">
+              {{ e.status }}
+            </span>
+          </td>
+          <td>
+            {% if item.is_eligible %}
+              <span class="badge badge-success"><i class="bi bi-check-circle"></i> Eligible</span>
+            {% else %}
+              <span class="badge badge-draft"><i class="bi bi-x-circle"></i> Ineligible</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.already_voted %}
+              <span class="badge badge-success"><i class="bi bi-check-all"></i> Ballot Cast</span>
+            {% elif item.can_vote %}
+              <span class="badge badge-open"><i class="bi bi-envelope"></i> Ready to Vote</span>
+            {% else %}
+              <span class="badge badge-draft">{{ item.status_label }}</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right;">
+            {% if item.can_vote %}
+              <a href="{{ url_for('voter.cast_vote', election_id=e.id) }}" class="btn btn-primary btn-sm">
+                Vote Now
+              </a>
+            {% elif item.already_voted %}
+              <a href="{{ url_for('voter.verify_receipt_page') }}" class="btn btn-outline btn-sm">
+                <i class="bi bi-receipt"></i> Verify Receipt
+              </a>
+            {% elif e.status == 'published' %}
+              <a href="{{ url_for('public.election_results', election_id=e.id) }}" class="btn btn-ghost btn-sm">
+                View Results
+              </a>
+            {% else %}
+              <span style="font-size:0.8rem;color:var(--text-muted);">{{ item.status_label }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Privacy Architecture Explanation -->
+<div class="card" style="background:var(--bg);border-left:4px solid var(--info);padding:1.25rem;">
+  <h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.5rem;color:var(--navy);">
+    <i class="bi bi-shield-lock"></i> Privacy Guardrail: Separation of Records
+  </h4>
+  <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;margin:0;">
+    This page reflects records in the <code>participations</code> table, which indicates that student <code>{{ current_user.username }}</code> has exercised their vote.
+    Crucially, <strong>your candidate choice is NOT stored here</strong>, and your participation record has <strong>no database foreign key to your encrypted ballot</strong>.
+  </p>
+</div>
+{% endblock %}

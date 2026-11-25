@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Verify Ballot Receipt — CipherBallot{% endblock %}
+{% block topbar_title %}Receipt Verification{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.35rem;"><i class="bi bi-shield-check"></i> Verifiable Receipt Check</h1>
+  <p style="color:var(--text-muted);font-size:0.925rem;">
+    Independently verify that your encrypted ballot is safely recorded in the election repository and that its cryptographic digest matches.
+  </p>
+</div>
+
+<!-- Receipt Lookup Form -->
+<div class="card" style="margin-bottom:2rem;max-width:800px;">
+  <div class="card-header">
+    <h3 style="font-size:1rem;font-weight:600;margin:0;">Look Up Receipt Code</h3>
+  </div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('public.receipt_verifier') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label for="receipt_code" style="font-weight:600;font-size:0.875rem;">Enter Your Receipt Code:</label>
+        <div style="display:flex;gap:0.75rem;margin-top:0.35rem;">
+          <input type="text" id="receipt_code" name="receipt_code" class="form-control"
+                 placeholder="e.g. 43-character token issued after voting"
+                 value="{{ receipt_code or '' }}" required autofocus style="font-family:monospace;font-size:0.9rem;">
+          <button type="submit" class="btn btn-primary" style="white-space:nowrap;">
+            <i class="bi bi-search"></i> Verify Receipt
+          </button>
+        </div>
+        <small style="color:var(--text-muted);display:block;margin-top:0.35rem;">
+          Your receipt code was generated upon casting your ballot. It allows lookup without exposing your identity.
+        </small>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Verification Result -->
+{% if result %}
+<div class="card" style="margin-bottom:2rem;max-width:800px;border-top:4px solid {% if result.verified %}var(--success){% else %}var(--danger){% endif %};">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <h3 style="font-size:1.05rem;font-weight:600;margin:0;">Verification Report</h3>
+    {% if result.verified %}
+      <span class="badge badge-success" style="font-size:0.85rem;padding:0.4rem 0.8rem;">
+        <i class="bi bi-check-circle-fill"></i> DIGEST VERIFIED INTACT
+      </span>
+    {% else %}
+      <span class="badge badge-danger" style="font-size:0.85rem;padding:0.4rem 0.8rem;">
+        <i class="bi bi-exclamation-triangle-fill"></i> VERIFICATION FAILED
+      </span>
+    {% endif %}
+  </div>
+  
+  <div class="card-body">
+    <div style="padding:1rem;border-radius:6px;background:{% if result.verified %}var(--success-light){% else %}var(--danger-light){% endif %};margin-bottom:1.5rem;color:{% if result.verified %}#065f46{% else %}#991b1b{% endif %};font-size:0.925rem;font-weight:500;">
+      {{ result.message }}
+    </div>
+
+    {% if result.found %}
+    <div style="display:grid;grid-template-columns:1fr;gap:1rem;font-size:0.875rem;">
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:0.5rem;">
+        <span style="color:var(--text-muted);">Election:</span>
+        <strong>{{ result.election_title }} (Status: {{ result.election_status }})</strong>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:0.5rem;">
+        <span style="color:var(--text-muted);">Ballot UUID:</span>
+        <code style="color:var(--text);">{{ result.ballot_id }}</code>
+      </div>
+
+      <div>
+        <span style="color:var(--text-muted);display:block;margin-bottom:0.25rem;">Published Digest on Bulletin Board:</span>
+        <code style="word-break:break-all;display:block;background:var(--bg-secondary);padding:0.5rem;border-radius:4px;font-size:0.8rem;">
+          {{ result.ballot_digest_hex }}
+        </code>
+      </div>
+
+      <div>
+        <span style="color:var(--text-muted);display:block;margin-bottom:0.25rem;">Live Recomputed Digest from Encrypted Ballot:</span>
+        <code style="word-break:break-all;display:block;background:var(--bg-secondary);padding:0.5rem;border-radius:4px;font-size:0.8rem;">
+          {{ result.recomputed_digest_hex }}
+        </code>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;padding-top:0.25rem;">
+        <span style="color:var(--text-muted);">Recorded At:</span>
+        <span>{{ result.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if result.created_at else '—' }}</span>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Educational Context Card -->
+<div class="card" style="max-width:800px;background:var(--bg);border-left:4px solid var(--primary);">
+  <div class="card-body" style="font-size:0.875rem;line-height:1.6;">
+    <h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.5rem;color:var(--navy);">
+      <i class="bi bi-lightbulb"></i> What Does This Verification Prove?
+    </h4>
+    <ul style="padding-left:1.25rem;margin:0;color:var(--text-muted);">
+      <li>
+        <strong>Included as Cast:</strong> This check proves that an encrypted ballot payload exists in the election database and matches the exact SHA-256 digest issued to you at voting time.
+      </li>
+      <li>
+        <strong>Tamper-Evident:</strong> If any party altered a single bit of your ciphertext, nonce, or tag in the database, the recomputed digest would mismatch.
+      </li>
+      <li>
+        <strong>Privacy Preservation:</strong> Because the receipt is stored independently from voter identity and the ballot is encrypted under AES-GCM, verifying this receipt does NOT disclose who you voted for or your student ID.
+      </li>
+      <li>
+        <strong>Educational Boundary:</strong> Receipt verification does not prevent a rogue tallying script from miscounting upon closing; end-to-end verifiability with mix-nets or homomorphic encryption is required for full cryptographic tally verification.
+      </li>
+    </ul>
+  </div>
+</div>
+
+{% endblock %}

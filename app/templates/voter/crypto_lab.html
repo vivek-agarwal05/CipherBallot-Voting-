@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+{% block title %}Cryptography Lab — CipherBallot{% endblock %}
+{% block topbar_title %}Interactive Cryptography Lab{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <div style="display:inline-block;padding:0.25rem 0.65rem;background:var(--primary-light);color:var(--primary-dark);border-radius:9999px;font-size:0.75rem;font-weight:700;margin-bottom:0.5rem;">
+    EDUCATIONAL WORKBENCH
+  </div>
+  <h1 style="font-size:1.65rem;font-weight:700;color:var(--navy);margin-bottom:0.25rem;">
+    Cryptography Laboratory &amp; Interactive Sandbox
+  </h1>
+  <p style="color:var(--text-muted);font-size:0.925rem;max-width:850px;line-height:1.5;">
+    Experiment directly with the cryptographic primitives powering CipherBallot. All demonstrations run isolated test payloads separate from election databases.
+  </p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr;gap:2rem;max-width:1000px;">
+
+  <!-- PANEL 1: Argon2id Password Hashing -->
+  <div class="card" style="padding:1.5rem;border-top:4px solid var(--primary);">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+      <div>
+        <h3 style="font-size:1.15rem;font-weight:700;margin:0 0 0.25rem 0;">
+          1. Password Hashing with Argon2id
+        </h3>
+        <span style="font-size:0.8rem;color:var(--text-muted);">Memory-hard Key Derivation &amp; Password Hashing (RFC 9106)</span>
+      </div>
+      <span class="badge badge-primary">Authentication</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+      <div>
+        <label for="p1-input" style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:0.35rem;">Sample Password:</label>
+        <div style="display:flex;gap:0.5rem;">
+          <input type="text" id="p1-input" class="form-control" value="StudentPass2024!" style="font-family:monospace;font-size:0.9rem;">
+          <button type="button" class="btn btn-primary" onclick="runArgonHash()">
+            Hash
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label for="p1-verify-input" style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:0.35rem;">Candidate Password to Verify:</label>
+        <div style="display:flex;gap:0.5rem;">
+          <input type="text" id="p1-verify-input" class="form-control" value="StudentPass2024!" style="font-family:monospace;font-size:0.9rem;">
+          <button type="button" class="btn btn-outline" onclick="runArgonVerify()">
+            Verify
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output Area -->
+    <div style="background:var(--bg-secondary);padding:1rem;border-radius:6px;margin-bottom:1rem;font-size:0.85rem;">
+      <div style="margin-bottom:0.5rem;">
+        <span style="color:var(--text-muted);">Generated Argon2id Hash:</span>
+        <code id="p1-hash-output" style="display:block;word-break:break-all;background:var(--card);padding:0.5rem;border-radius:4px;margin-top:0.25rem;border:1px solid var(--border);">
+          (Click "Hash" to generate)
+        </code>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span id="p1-benchmark" style="color:var(--text-muted);font-size:0.8rem;">Benchmark: —</span>
+        <span id="p1-result-badge" class="badge" style="display:none;"></span>
+      </div>
+    </div>
+
+    <!-- Explanation Accordion -->
+    <details style="font-size:0.825rem;color:var(--text-muted);line-height:1.5;">
+      <summary style="font-weight:600;color:var(--navy);cursor:pointer;margin-bottom:0.5rem;">
+        Cryptographic Context: What this does, Why it's used, Limitations
+      </summary>
+      <div style="padding-top:0.5rem;">
+        <p><strong>What it does:</strong> Computes a salted, memory-hard Argon2id hash requiring 64 MB of RAM and multiple CPU passes.</p>
+        <p><strong>Why used here:</strong> Protects voter and admin credentials against offline dictionary and GPU cracking if the database file is exfiltrated.</p>
+        <p><strong>What it does NOT guarantee:</strong> Does not protect against credential theft on the voter's browser or phishing attacks.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- PANEL 2: AES-256-GCM Encryption / Decryption -->
+  <div class="card" style="padding:1.5rem;border-top:4px solid var(--success);">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+      <div>
+        <h3 style="font-size:1.15rem;font-weight:700;margin:0 0 0.25rem 0;">
+          2. AES-256-GCM Authenticated Ballot Encryption
+        </h3>
+        <span style="font-size:0.8rem;color:var(--text-muted);">Galois/Counter Mode with 96-bit Unique Nonce and 128-bit Authentication Tag</span>
+      </div>
+      <span class="badge badge-success">Ballot Confidentiality</span>
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label for="p2-input" style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:0.35rem;">
+        Sample Ballot Plaintext <span style="font-weight:400;color:var(--text-muted);">(Laboratory text, not a real ballot):</span>
+      </label>
+      <div style="display:flex;gap:0.5rem;">
+        <input type="text" id="p2-input" class="form-control" value='{"candidate_id": 1, "candidate_name": "Priya Sharma"}' style="font-family:monospace;font-size:0.9rem;">
+        <button type="button" class="btn btn-primary" onclick="runAesEncrypt()">
+          Encrypt with AES-GCM
+        </button>
+      </div>
+    </div>
+
+    <!-- Output Parameters -->
+    <div style="background:var(--bg-secondary);padding:1rem;border-radius:6px;margin-bottom:1rem;font-size:0.825rem;display:grid;gap:0.5rem;">
+      <div>
+        <span style="color:var(--text-muted);">96-bit Random Nonce (Hex):</span>
+        <code id="p2-nonce" style="display:block;background:var(--card);padding:0.4rem;border-radius:4px;word-break:break-all;border:1px solid var(--border);">(empty)</code>
+      </div>
+      <div>
+        <span style="color:var(--text-muted);">Ciphertext (Hex):</span>
+        <code id="p2-ciphertext" style="display:block;background:var(--card);padding:0.4rem;border-radius:4px;word-break:break-all;border:1px solid var(--border);color:var(--primary);">(empty)</code>
+      </div>
+      <div>
+        <span style="color:var(--text-muted);">128-bit Authentication Tag (Hex):</span>
+        <code id="p2-tag" style="display:block;background:var(--card);padding:0.4rem;border-radius:4px;word-break:break-all;border:1px solid var(--border);color:var(--success);">(empty)</code>
+      </div>
+      <div style="text-align:right;margin-top:0.5rem;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="runAesDecrypt()">
+          <i class="bi bi-unlock"></i> Decrypt &amp; Verify Authenticity
+        </button>
+      </div>
+      <div id="p2-decrypt-result" style="display:none;padding:0.5rem;background:var(--card);border-radius:4px;border:1px solid var(--border);font-family:monospace;"></div>
+    </div>
+
+    <details style="font-size:0.825rem;color:var(--text-muted);line-height:1.5;">
+      <summary style="font-weight:600;color:var(--navy);cursor:pointer;margin-bottom:0.5rem;">
+        Cryptographic Context: What this does, Why it's used, Limitations
+      </summary>
+      <div style="padding-top:0.5rem;">
+        <p><strong>What it does:</strong> Encrypts the vote payload under AES-256 while producing a GHASH MAC tag. Nonces are never reused.</p>
+        <p><strong>Why used here:</strong> Protects ballot secrecy while enabling tamper detection before tallying.</p>
+        <p><strong>What it does NOT guarantee:</strong> A single server holds the decryption key at closing time; this does not provide threshold multi-party tallying.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- PANEL 3: Tamper Detection Demonstration -->
+  <div class="card" style="padding:1.5rem;border-top:4px solid var(--danger);">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+      <div>
+        <h3 style="font-size:1.15rem;font-weight:700;margin:0 0 0.25rem 0;">
+          3. Live Tamper Detection &amp; Authentication Failure
+        </h3>
+        <span style="font-size:0.8rem;color:var(--text-muted);">Flip 1 bit in ciphertext and observe AES-GCM MAC failure</span>
+      </div>
+      <span class="badge badge-danger">Integrity Guard</span>
+    </div>
+
+    <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1rem;">
+      This demonstration takes an encrypted ballot and flips exactly one bit (XOR 0x01) in the ciphertext, then attempts decryption.
+    </p>
+
+    <div style="margin-bottom:1rem;">
+      <button type="button" class="btn btn-danger" onclick="runTamperDemo()">
+        <i class="bi bi-lightning-charge"></i> Flip 1 Bit &amp; Attempt Decryption
+      </button>
+    </div>
+
+    <div id="p3-output" style="display:none;background:var(--bg-secondary);padding:1rem;border-radius:6px;font-size:0.85rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem;">
+        <div style="background:var(--success-light);padding:0.75rem;border-radius:4px;color:#065f46;">
+          <strong>Untouched Original Ballot:</strong>
+          <div id="p3-orig-status" style="margin-top:0.25rem;">—</div>
+        </div>
+        <div style="background:var(--danger-light);padding:0.75rem;border-radius:4px;color:#991b1b;">
+          <strong>1-Bit Tampered Copy:</strong>
+          <div id="p3-tamper-status" style="margin-top:0.25rem;">—</div>
+        </div>
+      </div>
+      <div id="p3-explanation" style="font-size:0.8rem;color:var(--text-muted);line-height:1.4;"></div>
+    </div>
+  </div>
+
+  <!-- PANEL 4: SHA-256 One-Way Hashing & Avalanche Effect -->
+  <div class="card" style="padding:1.5rem;border-top:4px solid var(--warning);">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+      <div>
+        <h3 style="font-size:1.15rem;font-weight:700;margin:0 0 0.25rem 0;">
+          4. SHA-256 Digest &amp; The Avalanche Effect
+        </h3>
+        <span style="font-size:0.8rem;color:var(--text-muted);">Cryptographic Hash Function (FIPS 180-4)</span>
+      </div>
+      <span class="badge badge-warning">Receipt Verification</span>
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label for="p4-input" style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:0.35rem;">Enter Any String to Hash:</label>
+      <div style="display:flex;gap:0.5rem;">
+        <input type="text" id="p4-input" class="form-control" value="CipherBallot Election Ballot #1234" style="font-family:monospace;font-size:0.9rem;">
+        <button type="button" class="btn btn-primary" onclick="runSha256()">
+          Compute SHA-256
+        </button>
+        <button type="button" class="btn btn-outline" onclick="alterAndHash()">
+          Modify 1 Char
+        </button>
+      </div>
+    </div>
+
+    <div style="background:var(--bg-secondary);padding:1rem;border-radius:6px;font-size:0.85rem;">
+      <span style="color:var(--text-muted);">SHA-256 Hex Digest (256 bits / 64 hex characters):</span>
+      <code id="p4-digest" style="display:block;background:var(--card);padding:0.5rem;border-radius:4px;margin-top:0.25rem;font-family:monospace;border:1px solid var(--border);color:var(--navy);word-break:break-all;">
+        (Click "Compute SHA-256" to see digest)
+      </code>
+    </div>
+  </div>
+
+  <!-- PANEL 5: Ed25519 Digital Signatures -->
+  <div class="card" style="padding:1.5rem;border-top:4px solid var(--info);">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+      <div>
+        <h3 style="font-size:1.15rem;font-weight:700;margin:0 0 0.25rem 0;">
+          5. Ed25519 Result Document Signatures
+        </h3>
+        <span style="font-size:0.8rem;color:var(--text-muted);">Deterministic Asymmetric Signatures over Edwards Curve 25519</span>
+      </div>
+      <span class="badge badge-info">Authority Certification</span>
+    </div>
+
+    <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1rem;">
+      Canonical JSON election results are signed using the institution's private key. Anyone with the public key can verify authenticity.
+    </p>
+
+    <div style="display:flex;gap:0.75rem;margin-bottom:1rem;">
+      <button type="button" class="btn btn-primary" onclick="runSignSample()">
+        <i class="bi bi-pen"></i> Sign Canonical Result Document
+      </button>
+      <button type="button" class="btn btn-outline" onclick="runVerifySignature(false)">
+        <i class="bi bi-check2-circle"></i> Verify Valid Document
+      </button>
+      <button type="button" class="btn btn-danger" onclick="runVerifySignature(true)">
+        <i class="bi bi-bug"></i> Tamper Document &amp; Verify Failure
+      </button>
+    </div>
+
+    <div id="p5-output" style="display:none;background:var(--bg-secondary);padding:1rem;border-radius:6px;font-size:0.825rem;">
+      <div style="margin-bottom:0.5rem;">
+        <span style="color:var(--text-muted);">Canonical Document Bytes:</span>
+        <code id="p5-doc" style="display:block;background:var(--card);padding:0.4rem;border-radius:4px;border:1px solid var(--border);word-break:break-all;"></code>
+      </div>
+      <div style="margin-bottom:0.5rem;">
+        <span style="color:var(--text-muted);">Ed25519 Signature (128 hex chars / 64 bytes):</span>
+        <code id="p5-sig" style="display:block;background:var(--card);padding:0.4rem;border-radius:4px;border:1px solid var(--border);color:var(--primary);word-break:break-all;"></code>
+      </div>
+      <div id="p5-status" style="font-weight:600;padding:0.5rem;border-radius:4px;margin-top:0.5rem;"></div>
+    </div>
+  </div>
+
+  <!-- PANEL 6: Audit Hash Chain -->
+  <div class="card" style="padding:1.5rem;border-top:4px solid var(--primary);">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+      <div>
+        <h3 style="font-size:1.15rem;font-weight:700;margin:0 0 0.25rem 0;">
+          6. Tamper-Evident Audit Event Hash Chain
+        </h3>
+        <span style="font-size:0.8rem;color:var(--text-muted);">Append-Only Hash Commitment: event_hash = SHA-256(prev_hash || payload)</span>
+      </div>
+      <span class="badge badge-primary">System Audit</span>
+    </div>
+
+    <div style="display:flex;gap:0.75rem;margin-bottom:1.25rem;">
+      <button type="button" class="btn btn-outline" onclick="loadAuditChain(false)">
+        <i class="bi bi-arrow-clockwise"></i> Inspect Intact Chain
+      </button>
+      <button type="button" class="btn btn-danger" onclick="loadAuditChain(true)">
+        <i class="bi bi-hammer"></i> Tamper Event #2 &amp; Verify Failure
+      </button>
+    </div>
+
+    <div id="p6-chain-view" style="display:grid;gap:0.75rem;margin-bottom:1rem;">
+      <!-- Dynamic chain events rendered here -->
+    </div>
+    <div id="p6-status" style="font-weight:600;padding:0.6rem;border-radius:4px;display:none;"></div>
+  </div>
+
+</div>
+
+<script>
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+// Helper for POST requests
+async function postApi(url, data) {
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': CSRF_TOKEN
+    },
+    body: JSON.stringify(data)
+  });
+  return await resp.json();
+}
+
+// 1. Argon2id
+async function runArgonHash() {
+  const pwd = document.getElementById('p1-input').value;
+  const res = await postApi('/api/v1/lab/hash-password', {password: pwd});
+  if (res.encoded_hash) {
+    document.getElementById('p1-hash-output').textContent = res.encoded_hash;
+    document.getElementById('p1-benchmark').textContent = `Computed in ${res.time_ms} ms (${res.algorithm})`;
+    document.getElementById('p1-verify-input').value = pwd;
+  }
+}
+
+async function runArgonVerify() {
+  const hash = document.getElementById('p1-hash-output').textContent.trim();
+  const pwd = document.getElementById('p1-verify-input').value;
+  if (hash === '(Click "Hash" to generate)') {
+    alert('Please compute a hash first.');
+    return;
+  }
+  const res = await postApi('/api/v1/lab/verify-password', {hash: hash, password: pwd});
+  const badge = document.getElementById('p1-result-badge');
+  badge.style.display = 'inline-block';
+  if (res.valid) {
+    badge.className = 'badge badge-success';
+    badge.textContent = `✓ Match (${res.time_ms} ms)`;
+  } else {
+    badge.className = 'badge badge-danger';
+    badge.textContent = `✗ Mismatch (${res.time_ms} ms)`;
+  }
+}
+
+// 2. AES-256-GCM
+let currentLabCipher = {};
+async function runAesEncrypt() {
+  const pt = document.getElementById('p2-input').value;
+  const res = await postApi('/api/v1/lab/encrypt-sample', {plaintext: pt});
+  currentLabCipher = res;
+  document.getElementById('p2-nonce').textContent = res.nonce_hex;
+  document.getElementById('p2-ciphertext').textContent = res.ciphertext_hex;
+  document.getElementById('p2-tag').textContent = res.tag_hex;
+  document.getElementById('p2-decrypt-result').style.display = 'none';
+}
+
+async function runAesDecrypt() {
+  if (!currentLabCipher.nonce_hex) {
+    alert('Please encrypt a sample string first.');
+    return;
+  }
+  const res = await postApi('/api/v1/lab/decrypt-sample', currentLabCipher);
+  const div = document.getElementById('p2-decrypt-result');
+  div.style.display = 'block';
+  if (res.success) {
+    div.style.color = 'var(--success)';
+    div.textContent = `✓ Decrypted & Verified: ${res.plaintext}`;
+  } else {
+    div.style.color = 'var(--danger)';
+    div.textContent = `✗ Decryption Failed: ${res.error}`;
+  }
+}
+
+// 3. Tamper Demo
+async function runTamperDemo() {
+  const res = await postApi('/api/v1/lab/tamper-demo', currentLabCipher);
+  const out = document.getElementById('p3-output');
+  out.style.display = 'block';
+  document.getElementById('p3-orig-status').textContent = res.original_decrypts ? '✓ Decrypted successfully' : '✗ Failed';
+  document.getElementById('p3-tamper-status').textContent = res.tampered_decrypts ? 'Tampered decrypted!' : `✗ ${res.tampered_error}`;
+  document.getElementById('p3-explanation').textContent = res.explanation;
+}
+
+// 4. SHA-256
+async function runSha256() {
+  const text = document.getElementById('p4-input').value;
+  const res = await postApi('/api/v1/lab/sha256', {text: text});
+  document.getElementById('p4-digest').textContent = res.digest_hex;
+}
+
+function alterAndHash() {
+  const inp = document.getElementById('p4-input');
+  inp.value = inp.value + '!';
+  runSha256();
+}
+
+// 5. Ed25519 Signatures
+let currentSignatureDoc = {};
+async function runSignSample() {
+  const res = await postApi('/api/v1/lab/sign-sample', {});
+  currentSignatureDoc = res;
+  const out = document.getElementById('p5-output');
+  out.style.display = 'block';
+  document.getElementById('p5-doc').textContent = res.canonical_json;
+  document.getElementById('p5-sig').textContent = res.signature_hex;
+  document.getElementById('p5-status').className = 'alert alert-info';
+  document.getElementById('p5-status').textContent = 'Document canonically encoded and signed with Ed25519 private key.';
+}
+
+async function runVerifySignature(tamper) {
+  if (!currentSignatureDoc.signature_hex) {
+    alert('Please sign a sample document first.');
+    return;
+  }
+  const payload = {
+    document: JSON.parse(currentSignatureDoc.canonical_json),
+    signature_hex: currentSignatureDoc.signature_hex,
+    tamper: tamper
+  };
+  const res = await postApi('/api/v1/lab/verify-signature', payload);
+  const statusDiv = document.getElementById('p5-status');
+  if (res.is_valid) {
+    statusDiv.className = 'alert alert-success';
+    statusDiv.textContent = `✓ Signature Valid: ${res.message}`;
+  } else {
+    statusDiv.className = 'alert alert-danger';
+    statusDiv.textContent = `✗ Signature Invalid: ${res.message}`;
+  }
+}
+
+// 6. Audit Chain
+async function loadAuditChain(tamper) {
+  const res = await postApi('/api/v1/lab/audit-chain-demo', {tamper_event_id: tamper ? 2 : null});
+  const container = document.getElementById('p6-chain-view');
+  container.innerHTML = '';
+  
+  res.chain.forEach(ev => {
+    const card = document.createElement('div');
+    card.style.cssText = 'padding:0.75rem 1rem;border:1px solid var(--border);border-radius:6px;background:var(--card);font-size:0.8rem;';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem;">
+        <strong>Event #${ev.id}: <code>${ev.type}</code></strong>
+        <span style="color:var(--text-muted);font-family:monospace;">Actor: ${ev.actor}</span>
+      </div>
+      <div style="color:var(--text-muted);margin-bottom:0.25rem;">Payload: <code>${JSON.stringify(ev.payload)}</code></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-family:monospace;font-size:0.75rem;margin-top:0.35rem;">
+        <span style="color:var(--text-muted);">Prev Hash: ${ev.prev_hash.slice(0, 16)}...</span>
+        <span style="color:var(--primary);">Event Hash: ${ev.event_hash.slice(0, 16)}...</span>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  const statusDiv = document.getElementById('p6-status');
+  statusDiv.style.display = 'block';
+  if (res.verified) {
+    statusDiv.className = 'alert alert-success';
+    statusDiv.textContent = '✓ Audit Chain Verified Intact: All successive SHA-256 linkages confirmed.';
+  } else {
+    statusDiv.className = 'alert alert-danger';
+    statusDiv.textContent = `✗ TAMPER DETECTED: ${res.message}`;
+  }
+}
+
+// Initialise defaults on load
+document.addEventListener('DOMContentLoaded', () => {
+  runArgonHash();
+  runAesEncrypt();
+  runSha256();
+  runSignSample();
+  loadAuditChain(false);
+});
+</script>
+{% endblock %}

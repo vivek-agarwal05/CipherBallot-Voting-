@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Cast Ballot — {{ election.title }}{% endblock %}
+{% block topbar_title %}Cast Ballot{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
+    <span class="badge badge-open">Voting Open</span>
+    <span class="badge" style="background:var(--primary-light);color:var(--primary-dark);">Variant {{ election.variant }}</span>
+  </div>
+  <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">{{ election.title }}</h1>
+  <p style="color:var(--text-muted);font-size:0.9rem;">
+    Select one candidate below. Your vote will be sealed using <strong>Hybrid RSA-OAEP + AES-256-GCM</strong> authenticated encryption upon confirmation.
+  </p>
+</div>
+
+<form method="post" action="{{ url_for('voter.cast_vote', election_id=election.id) }}" id="voteForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <!-- Step 1: Candidate Selection -->
+  <div id="step-select">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;">1</div>
+      <h3 style="font-size:1.1rem;font-weight:600;margin:0;">Select Your Candidate</h3>
+    </div>
+
+    <div style="display:grid;gap:1rem;margin-bottom:1.5rem;max-width:800px;">
+      {% for candidate in candidates %}
+      <label class="card candidate-card" style="padding:1.25rem;cursor:pointer;display:flex;align-items:flex-start;gap:1rem;transition:border-color 0.2s, box-shadow 0.2s;position:relative;" id="label-candidate-{{ candidate.id }}">
+        <input type="radio" name="candidate_id" value="{{ candidate.id }}" required
+               data-candidate-name="{{ candidate.display_name }}"
+               style="margin-top:0.35rem;accent-color:var(--primary);width:18px;height:18px;">
+        <div style="flex-grow:1;">
+          <div style="font-size:1.05rem;font-weight:600;color:var(--navy);margin-bottom:0.25rem;">
+            {{ candidate.display_name }}
+          </div>
+          <div style="font-size:0.875rem;color:var(--text-muted);line-height:1.4;">
+            {{ candidate.description or 'Candidate running for student representative.' }}
+          </div>
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div style="max-width:800px;display:flex;justify-content:space-between;align-items:center;">
+      <a href="{{ url_for('voter.election_detail', election_id=election.id) }}" class="btn btn-ghost">
+        Cancel
+      </a>
+      <button type="button" class="btn btn-primary" id="btn-to-confirm" onclick="goToConfirmStep()">
+        Proceed to Review &rarr;
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 2: Review & Final Confirmation -->
+  <div id="step-confirm" style="display:none;max-width:800px;">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;">2</div>
+      <h3 style="font-size:1.1rem;font-weight:600;margin:0;">Review &amp; Confirm Ballot</h3>
+    </div>
+
+    <div class="card" style="padding:1.5rem;margin-bottom:1.5rem;border-left:4px solid var(--warning);">
+      <h4 style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;font-weight:700;margin-bottom:0.5rem;">
+        You have selected:
+      </h4>
+      <div id="confirm-candidate-name" style="font-size:1.35rem;font-weight:700;color:var(--navy);margin-bottom:0.75rem;">
+        —
+      </div>
+      <div style="font-size:0.875rem;color:var(--text-muted);line-height:1.5;">
+        ⚠️ <strong>Irreversible Action:</strong> Once submitted, your ballot will be sealed with a unique ephemeral AES-256-GCM key wrapped by RSA-2048 OAEP.
+        The database constraint prevents modifying or casting another vote in this election.
+        {% if election.variant == 'B' %}
+          A verifiable SHA-256 receipt will be issued immediately upon recording.
+        {% else %}
+          (Variant A single-class baseline mode: encrypted ballot stored without issuing a public receipt.)
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:1rem;justify-content:flex-end;">
+      <button type="button" class="btn btn-outline" onclick="goToSelectStep()">
+        &larr; Change Selection
+      </button>
+      <button type="submit" class="btn btn-primary" id="btn-submit-ballot" style="background:var(--success);border-color:var(--success);">
+        <i class="bi bi-lock-fill"></i> Seal &amp; Submit Encrypted Vote
+      </button>
+    </div>
+  </div>
+</form>
+
+<script>
+function goToConfirmStep() {
+  const selectedRadio = document.querySelector('input[name="candidate_id"]:checked');
+  if (!selectedRadio) {
+    alert('Please select a candidate before proceeding.');
+    return;
+  }
+  const candidateName = selectedRadio.getAttribute('data-candidate-name') || selectedRadio.value;
+  document.getElementById('confirm-candidate-name').textContent = candidateName;
+  document.getElementById('step-select').style.display = 'none';
+  document.getElementById('step-confirm').style.display = 'block';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function goToSelectStep() {
+  document.getElementById('step-confirm').style.display = 'none';
+  document.getElementById('step-select').style.display = 'block';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.candidate-card').forEach(card => {
+    card.addEventListener('click', function() {
+      document.querySelectorAll('.candidate-card').forEach(c => c.style.borderColor = 'var(--border)');
+      this.style.borderColor = 'var(--primary)';
+    });
+  });
+});
+</script>
+{% endblock %}

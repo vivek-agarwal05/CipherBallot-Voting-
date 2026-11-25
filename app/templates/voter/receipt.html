@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Ballot Receipt — CipherBallot{% endblock %}
+{% block topbar_title %}Official Ballot Receipt{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">
+        <i class="bi bi-patch-check-fill" style="color:var(--success);"></i> Ballot Cast Successfully
+      </h1>
+      <p style="color:var(--text-muted);font-size:0.925rem;">
+        Your vote has been sealed under AES-256-GCM. Save this receipt to verify your ballot on the public bulletin board.
+      </p>
+    </div>
+    <div style="display:flex;gap:0.5rem;" class="no-print">
+      <button onclick="window.print()" class="btn btn-outline btn-sm">
+        <i class="bi bi-printer"></i> Print Receipt
+      </button>
+      <a href="{{ url_for('voter.dashboard') }}" class="btn btn-ghost btn-sm">
+        Return to Dashboard &rarr;
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Main Receipt Card -->
+<div class="card" style="max-width:800px;margin-bottom:2rem;border-top:4px solid var(--success);padding:2rem;">
+  <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:1rem;margin-bottom:1.5rem;">
+    <div>
+      <h3 style="font-size:1.15rem;font-weight:700;margin:0 0 0.25rem 0;">CipherBallot Official Verification Token</h3>
+      <span style="font-size:0.8rem;color:var(--text-muted);">Variant B Cryptographic Receipt</span>
+    </div>
+    <span class="badge badge-success" style="font-size:0.8rem;padding:0.4rem 0.8rem;">
+      <i class="bi bi-check-lg"></i> RECORDED
+    </span>
+  </div>
+
+  <div style="display:grid;gap:1.25rem;font-size:0.875rem;">
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:0.5rem;">
+      <span style="color:var(--text-muted);">Election:</span>
+      <strong style="color:var(--navy);">{{ receipt.election.title }}</strong>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:0.5rem;">
+      <span style="color:var(--text-muted);">Cast Timestamp:</span>
+      <span>{{ receipt.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if receipt.created_at else '—' }}</span>
+    </div>
+
+    <div>
+      <span style="color:var(--text-muted);display:block;margin-bottom:0.25rem;font-weight:600;">
+        Your Secret Receipt Code:
+      </span>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <code id="receiptCode" style="font-family:monospace;font-size:0.95rem;background:var(--bg-secondary);padding:0.6rem 0.8rem;border-radius:6px;word-break:break-all;color:var(--primary-dark);flex-grow:1;border:1px solid var(--border);">
+          {{ receipt.receipt_code }}
+        </code>
+        <button type="button" class="btn btn-outline btn-sm no-print" onclick="copyReceiptCode()" title="Copy to clipboard">
+          <i class="bi bi-clipboard" id="copyIcon"></i> Copy
+        </button>
+      </div>
+      <small style="color:var(--text-muted);display:block;margin-top:0.35rem;">
+        Keep this code private. You can enter it on the bulletin board verifier at any time.
+      </small>
+    </div>
+
+    <div>
+      <span style="color:var(--text-muted);display:block;margin-bottom:0.25rem;font-weight:600;">
+        SHA-256 Ballot Digest:
+      </span>
+      <code style="font-family:monospace;font-size:0.825rem;background:var(--bg-secondary);padding:0.6rem 0.8rem;border-radius:6px;word-break:break-all;color:var(--text);display:block;border:1px solid var(--border);">
+        {{ receipt.ballot_digest_hex }}
+      </code>
+      <small style="color:var(--text-muted);display:block;margin-top:0.35rem;">
+        Cryptographic digest computed over the AES-GCM ciphertext, nonce, and tag.
+      </small>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:0.75rem;">
+      <span style="color:var(--text-muted);">Random Ballot UUID:</span>
+      <span style="font-family:monospace;font-size:0.8rem;color:var(--text-muted);">{{ receipt.ballot_id }}</span>
+    </div>
+  </div>
+
+  <div style="margin-top:2rem;text-align:right;" class="no-print">
+    <a href="{{ url_for('public.receipt_verifier', code=receipt.receipt_code) }}" class="btn btn-primary">
+      <i class="bi bi-search"></i> Verify on Public Bulletin Board &rarr;
+    </a>
+  </div>
+</div>
+
+<!-- Receipt Scope Notice -->
+<div class="card" style="max-width:800px;background:var(--bg);border-left:4px solid var(--info);padding:1.25rem;">
+  <h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.5rem;color:var(--navy);">
+    <i class="bi bi-shield-lock"></i> Verification Scope &amp; Privacy Guarantee
+  </h4>
+  <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;margin-bottom:0.5rem;">
+    <strong>What this receipt guarantees:</strong> It proves that your ballot ciphertext is recorded and matches the SHA-256 digest on the public bulletin board without revealing your candidate choice or identity.
+  </p>
+  <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;margin:0;">
+    <strong>What this does not guarantee:</strong> It does not prove that an insider with administrative keys cannot manipulate tallying after election close; full end-to-end verifiability requires zero-knowledge proofs and threshold homomorphic tallying.
+  </p>
+</div>
+
+<script>
+function copyReceiptCode() {
+  const code = document.getElementById('receiptCode').textContent.trim();
+  navigator.clipboard.writeText(code).then(() => {
+    const icon = document.getElementById('copyIcon');
+    icon.className = 'bi bi-check-lg';
+    alert('Receipt code copied to clipboard!');
+    setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
+  });
+}
+</script>
+{% endblock %}

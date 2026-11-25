@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}CipherBallot — Secure Online Voting Prototype{% endblock %}
+{% block topbar_title %}CipherBallot Overview{% endblock %}
+{% block content %}
+<div class="page-header" style="background:linear-gradient(135deg, var(--card) 0%, var(--bg) 100%);padding:2rem;border-radius:var(--radius-lg);border:1px solid var(--border);margin-bottom:2rem;">
+  <div style="display:inline-block;padding:0.25rem 0.75rem;background:var(--primary-light);color:var(--primary-dark);border-radius:9999px;font-size:0.75rem;font-weight:700;margin-bottom:0.75rem;">
+    COLLEGE CRYPTOGRAPHY COURSE PROJECT
+  </div>
+  <h1 style="font-size:1.85rem;font-weight:700;color:var(--navy);margin-bottom:0.75rem;">
+    CipherBallot — Secure Online Voting Prototype
+  </h1>
+  <p style="font-size:1rem;color:var(--text-muted);max-width:800px;line-height:1.6;margin-bottom:1.5rem;">
+    An educational demonstrator illustrating how voter authentication, authenticated AES-256-GCM encrypted ballots,
+    one-vote-per-voter atomic constraints, SHA-256 verifiable receipts, and Ed25519 digital signatures function together in an online election system.
+  </p>
+  
+  <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+    {% if not current_user.is_authenticated %}
+      <a href="{{ url_for('auth.login') }}" class="btn btn-primary"><i class="bi bi-box-arrow-in-right"></i> Sign In to Demo Accounts</a>
+    {% elif current_user.is_admin %}
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary"><i class="bi bi-speedometer2"></i> Open Admin Dashboard</a>
+    {% else %}
+      <a href="{{ url_for('voter.dashboard') }}" class="btn btn-primary"><i class="bi bi-grid-1x2"></i> View My Voting Dashboard</a>
+    {% endif %}
+    <a href="{{ url_for('public.bulletin_board') }}" class="btn btn-outline"><i class="bi bi-card-checklist"></i> Public Bulletin Board</a>
+    <a href="{{ url_for('public.receipt_verifier') }}" class="btn btn-ghost"><i class="bi bi-receipt"></i> Verify Receipt Code</a>
+    <a href="{{ url_for('public.privacy_guide') }}" class="btn btn-ghost"><i class="bi bi-shield-lock"></i> Privacy Architecture Guide</a>
+  </div>
+</div>
+
+<!-- Architecture & Core Features -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:1.25rem;margin-bottom:2.5rem;">
+  <div class="card" style="padding:1.5rem;border-left:4px solid var(--primary);">
+    <div style="width:40px;height:40px;border-radius:8px;background:var(--primary-light);color:var(--primary-dark);display:flex;align-items:center;justify-content:center;font-size:1.25rem;margin-bottom:1rem;">
+      <i class="bi bi-shield-lock"></i>
+    </div>
+    <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:0.5rem;">1. Authenticated Ballot Encryption</h3>
+    <p style="font-size:0.875rem;color:var(--text-muted);line-height:1.5;">
+      Votes are encrypted using <strong>AES-256-GCM</strong> with 96-bit unique nonces. The encrypted ballot table stores <em>no voter ID and no candidate ID column</em>.
+    </p>
+  </div>
+
+  <div class="card" style="padding:1.5rem;border-left:4px solid var(--success);">
+    <div style="width:40px;height:40px;border-radius:8px;background:var(--success-light);color:var(--success);display:flex;align-items:center;justify-content:center;font-size:1.25rem;margin-bottom:1rem;">
+      <i class="bi bi-receipt"></i>
+    </div>
+    <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:0.5rem;">2. Verifiable Receipts</h3>
+    <p style="font-size:0.875rem;color:var(--text-muted);line-height:1.5;">
+      Voters receive a random receipt code and <strong>SHA-256 digest</strong> of their ballot ciphertext. Anyone can check that their ballot is recorded on the bulletin board without revealing their vote.
+    </p>
+  </div>
+
+  <div class="card" style="padding:1.5rem;border-left:4px solid var(--warning);">
+    <div style="width:40px;height:40px;border-radius:8px;background:var(--warning-light);color:var(--warning);display:flex;align-items:center;justify-content:center;font-size:1.25rem;margin-bottom:1rem;">
+      <i class="bi bi-arrow-repeat"></i>
+    </div>
+    <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:0.5rem;">3. Duplicate Vote Prevention</h3>
+    <p style="font-size:0.875rem;color:var(--text-muted);line-height:1.5;">
+      Eligibility and participation are enforced atomically via database constraints on <code>(election_id, voter_id)</code>, strictly separated from ballot payloads.
+    </p>
+  </div>
+
+  <div class="card" style="padding:1.5rem;border-left:4px solid var(--info);">
+    <div style="width:40px;height:40px;border-radius:8px;background:var(--info-light);color:var(--info);display:flex;align-items:center;justify-content:center;font-size:1.25rem;margin-bottom:1rem;">
+      <i class="bi bi-pen"></i>
+    </div>
+    <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:0.5rem;">4. Ed25519 Result Signatures</h3>
+    <p style="font-size:0.875rem;color:var(--text-muted);line-height:1.5;">
+      Once an election closes, ballots are tallied and canonical results are digitally signed with an <strong>Ed25519 private key</strong>, allowing independent public verification.
+    </p>
+  </div>
+</div>
+
+<!-- Active Elections -->
+<section style="margin-bottom:2.5rem">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <h2 style="font-size:1.2rem;font-weight:700;"><i class="bi bi-box-seam"></i> Active Elections</h2>
+    <span style="font-size:0.85rem;color:var(--text-muted);">{{ open_elections|length }} election(s) accepting votes</span>
+  </div>
+
+  {% if open_elections %}
+    <div style="display:grid;gap:1.25rem;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));">
+      {% for election in open_elections %}
+      <div class="card" style="display:flex;flex-direction:column;">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <h3 style="font-size:1rem;font-weight:600;margin-bottom:0.25rem;">{{ election.title }}</h3>
+            <span style="font-size:0.75rem;color:var(--text-muted);"><i class="bi bi-building"></i> {{ election.group_dept or 'Institutional' }}</span>
+          </div>
+          <span class="badge badge-open badge-dot">Open</span>
+        </div>
+        <div class="card-body" style="font-size:0.875rem;color:var(--text-muted);flex-grow:1;">
+          <p>{{ election.description or 'Official institutional poll.' }}</p>
+          <div style="font-size:0.8rem;margin-top:0.75rem;color:var(--text);">
+            <strong>Candidates:</strong> {{ election.candidates|length }} registered
+          </div>
+        </div>
+        <div class="card-footer" style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:0.8rem;color:var(--text-muted);">
+            <i class="bi bi-shield-check"></i> Encrypted with AES-GCM
+          </span>
+          {% if current_user.is_authenticated and not current_user.is_admin %}
+            <a href="{{ url_for('voter.cast_vote', election_id=election.id) }}" class="btn btn-primary btn-sm">Cast Vote</a>
+          {% elif not current_user.is_authenticated %}
+            <a href="{{ url_for('auth.login') }}" class="btn btn-outline btn-sm">Sign in to vote</a>
+          {% else %}
+            <a href="{{ url_for('admin.edit_election', election_id=election.id) }}" class="btn btn-ghost btn-sm">Manage</a>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card" style="text-align:center;padding:2rem;">
+      <p style="color:var(--text-muted);">No elections are currently open for voting.</p>
+    </div>
+  {% endif %}
+</section>
+
+<!-- Published Elections -->
+{% if published_elections %}
+<section>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <h2 style="font-size:1.2rem;font-weight:700;"><i class="bi bi-patch-check"></i> Certified Results</h2>
+    <span style="font-size:0.85rem;color:var(--text-muted);">Digitally signed by election authority</span>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Election</th>
+          <th>Department</th>
+          <th>Ballots Cast</th>
+          <th>Certified Date</th>
+          <th>Signature</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for election in published_elections %}
+        <tr>
+          <td style="font-weight:600;">{{ election.title }}</td>
+          <td>{{ election.group_dept or '—' }}</td>
+          <td>{{ election.vote_count }}</td>
+          <td>{{ election.updated_at.strftime('%Y-%m-%d %H:%M') if election.updated_at else '—' }}</td>
+          <td><span class="badge badge-success"><i class="bi bi-pen"></i> Ed25519 Verified</span></td>
+          <td style="text-align:right;">
+            <a href="{{ url_for('public.election_results', election_id=election.id) }}" class="btn btn-ghost btn-sm">
+              View Certified Tally
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}

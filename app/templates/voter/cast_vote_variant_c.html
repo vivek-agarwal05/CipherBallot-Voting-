@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Variant C Anonymous Voting — {{ election.title }}{% endblock %}
+{% block topbar_title %}Variant C: Anonymous Token Voting{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
+    <span class="badge badge-open">Voting Open</span>
+    <span class="badge" style="background:var(--primary-light);color:var(--primary-dark);">Variant C: Anonymous Token Model</span>
+  </div>
+  <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">{{ election.title }}</h1>
+  <p style="color:var(--text-muted);font-size:0.9rem;max-width:800px;">
+    Two-phase voting separates <strong>identity verification</strong> (Phase 1) from <strong>ballot submission</strong> (Phase 2) so no voter ID is ever linked to a cast ballot.
+  </p>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:1.5rem;max-width:1050px;">
+
+  <!-- Phase 1: Identity-Linked Token Issuance -->
+  <div class="card" style="padding:1.5rem;border-top:4px solid var(--primary);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+      <h2 style="font-size:1.1rem;font-weight:700;margin:0;">Phase 1: Claim Anonymous Token</h2>
+      {% if current_user.is_authenticated and status_info and status_info.already_voted %}
+        <span class="badge badge-success">Token Issued</span>
+      {% elif current_user.is_authenticated %}
+        <span class="badge badge-primary">Identity Verified</span>
+      {% else %}
+        <span class="badge badge-draft">Anonymous Session</span>
+      {% endif %}
+    </div>
+
+    {% if not current_user.is_authenticated %}
+      <p style="font-size:0.875rem;color:var(--text-muted);line-height:1.5;">
+        You are currently in the <strong>unauthenticated Anonymous Ballot Box</strong>. If you already claimed your one-time token during Phase 1, paste it directly in Phase 2!
+      </p>
+      <a href="{{ url_for('auth.login') }}" class="btn btn-outline btn-sm">Sign in to claim a new token</a>
+    {% elif issued_token %}
+      <div style="background:var(--bg-secondary);padding:1rem;border-radius:8px;border:1px solid var(--success);margin-bottom:1rem;">
+        <div style="font-size:0.8rem;font-weight:700;color:var(--success);margin-bottom:0.35rem;">
+          <i class="bi bi-check-circle-fill"></i> One-Time Anonymous Token Issued!
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem;">
+          Only the <code>SHA-256</code> hash of this token is stored in the <code>anonymous_tokens</code> table (with zero <code>voter_id</code>). Copy it and submit in Phase 2, or open the anonymous portal in a separate window:
+        </p>
+        <code id="issuedTokenText" style="display:block;padding:0.55rem;background:var(--card);border:1px solid var(--border);border-radius:6px;word-break:break-all;font-size:0.82rem;color:var(--primary-dark);">{{ issued_token }}</code>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="copyAnonToken()">
+          <i class="bi bi-clipboard"></i> Copy Token
+        </button>
+        <a href="{{ url_for('public.anonymous_cast', election_id=election.id) }}" class="btn btn-ghost btn-sm" target="_blank">
+          <i class="bi bi-box-arrow-up-right"></i> Open Unauthenticated Portal
+        </a>
+      </div>
+    {% elif status_info and status_info.already_voted %}
+      <p style="font-size:0.875rem;color:var(--text-muted);line-height:1.5;">
+        Your identity record shows <code>status = 'token_issued'</code>. Because the server does <strong>not</strong> store raw tokens or link tokens to your user ID, paste the token you copied earlier into Phase 2.
+      </p>
+      <div style="font-size:0.8rem;background:var(--bg-secondary);padding:0.75rem;border-radius:6px;color:var(--text-muted);">
+        <strong>Privacy Proof:</strong> Notice that even the server cannot recover your token from your account!
+      </div>
+    {% else %}
+      <p style="font-size:0.875rem;color:var(--text-muted);line-height:1.5;margin-bottom:1rem;">
+        Clicking below verifies your eligibility as <code>{{ current_user.username }}</code>, logs token issuance in <code>participations</code>, and gives you a cryptographically random 256-bit token.
+      </p>
+      <form method="post" action="{{ url_for('voter.cast_vote', election_id=election.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="claim_token">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-ticket-perforated-fill"></i> Generate My Anonymous Voting Token
+        </button>
+      </form>
+    {% endif %}
+  </div>
+
+  <!-- Phase 2: Anonymous Ballot Submission -->
+  <div class="card" style="padding:1.5rem;border-top:4px solid var(--success);">
+    <h2 style="font-size:1.1rem;font-weight:700;margin:0 0 0.75rem 0;">Phase 2: Anonymous Ballot Box</h2>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">
+      Redeem any valid one-time token below. Your vote is sealed using <strong>Hybrid RSA-OAEP + AES-256-GCM</strong> with zero identity metadata.
+    </p>
+
+    <form method="post" action="{{ url_for('voter.cast_vote', election_id=election.id) if current_user.is_authenticated else url_for('public.anonymous_cast', election_id=election.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="cast_with_token">
+
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label for="anonymous_token" style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:0.25rem;">
+          Anonymous Voting Token <span style="color:var(--danger)">*</span>
+        </label>
+        <input type="text" class="form-control" id="anonymous_token" name="anonymous_token"
+               value="{{ issued_token or '' }}"
+               placeholder="Paste your 43-char anonymous token" required>
+      </div>
+
+      <div style="margin-bottom:1.25rem;">
+        <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:0.5rem;">
+          Select Candidate <span style="color:var(--danger)">*</span>
+        </label>
+        <div style="display:grid;gap:0.6rem;">
+          {% for candidate in candidates %}
+          <label style="display:flex;align-items:flex-start;gap:0.65rem;padding:0.75rem;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg);">
+            <input type="radio" name="candidate_id" value="{{ candidate.id }}" required style="margin-top:0.2rem;accent-color:var(--primary);">
+            <div>
+              <div style="font-weight:600;color:var(--navy);font-size:0.95rem;">{{ candidate.display_name }}</div>
+              {% if candidate.description %}
+                <div style="font-size:0.78rem;color:var(--text-muted);">{{ candidate.description }}</div>
+              {% endif %}
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%;background:var(--success);border-color:var(--success);">
+        <i class="bi bi-lock-fill"></i> Redeem Token &amp; Cast Anonymous Ballot
+      </button>
+    </form>
+  </div>
+
+</div>
+
+<script>
+function copyAnonToken() {
+  const el = document.getElementById('issuedTokenText');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+    alert('Anonymous voting token copied!');
+  });
+}
+</script>
+{% endblock %}

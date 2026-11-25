@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="description" content="CipherBallot — Secure Online Voting Prototype (Variant {{ project_variant }})">
+  <title>{% block title %}CipherBallot — Secure Online Voting Prototype{% endblock %}</title>
+  
+  <!-- Anti-FOUC script for preserved sidebar collapse state -->
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('cb_sidebar_collapsed') === 'true') {
+          document.documentElement.classList.add('sidebar-collapsed');
+        }
+      } catch (_) {}
+    })();
+  </script>
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  
+  <!-- CSS -->
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="app-wrapper">
+  <!-- Neumorphic Dark Charcoal Sidebar (CipherBallot Connected Pages & Theme Switch) -->
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+    <!-- 1. Brand, Variant & Role Header (Top) -->
+    <div class="sidebar-top-header">
+      <div class="sidebar-brand-badge-wrap">
+        <svg class="sidebar-brand-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="sb-shield-grad-cb" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#3B82F6" />
+              <stop offset="100%" stop-color="#1D4ED8" />
+            </linearGradient>
+            <linearGradient id="sb-inner-grad-cb" x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#FFFFFF" />
+              <stop offset="100%" stop-color="#E0E7FF" />
+            </linearGradient>
+          </defs>
+          <path d="M16 2.5L27 7.5V15.5C27 22.8 22.3 28 16 29.5C9.7 28 5 22.8 5 15.5V7.5L16 2.5Z" 
+                fill="url(#sb-shield-grad-cb)" />
+          <path d="M16 6.8L24 10.5V15.2C24 20.8 20.6 24.8 16 26C11.4 24.8 8 20.8 8 15.2V10.5L16 6.8Z" 
+                fill="url(#sb-inner-grad-cb)" opacity="0.95" />
+          <path d="M13.8 16.2L12 14.4L10.6 15.8L13.8 19L21.4 11.4L20 10L13.8 16.2Z" 
+                fill="#1D4ED8" />
+        </svg>
+      </div>
+      <div class="sidebar-brand-info">
+        <div class="sidebar-brand-title-row">
+          <span class="sidebar-brand-title">CipherBallot</span>
+          <span class="sidebar-variant-badge">{{ project_variant }}</span>
+        </div>
+        <div class="sidebar-brand-subtitle">Secure Online Voting</div>
+        <div class="sidebar-user-role-tag">
+          <i class="bi bi-person-badge"></i>
+          <span>
+            {% if current_user.is_authenticated %}
+              {% if current_user.is_admin %}Election Admin{% else %}Student Voter{% endif %}
+            {% else %}
+              Guest User
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Navigation Items (Exact 8 CipherBallot Pages Connected to App Routes) -->
+    <nav class="sidebar-nav-container">
+      {% set cur_ep = request.endpoint or '' %}
+      <ul class="sidebar-menu">
+        <!-- 1. Dashboard -> Election overview and statistics -->
+        <li class="sidebar-menu-item">
+          <a href="{% if current_user.is_authenticated %}{% if current_user.is_admin %}{{ url_for('admin.dashboard') }}{% else %}{{ url_for('voter.dashboard') }}{% endif %}{% else %}{{ url_for('public.index') }}{% endif %}" 
+             class="sidebar-nav-link {% if cur_ep in ('admin.dashboard', 'voter.dashboard', 'public.index') or not cur_ep %}active{% endif %}"
+             title="Dashboard — Election overview and statistics">
+            <i class="bi bi-speedometer2 nav-icon"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+
+        <!-- 2. Cast Vote -> Candidate selection and AES-256-GCM encrypted ballot submission -->
+        <li class="sidebar-menu-item">
+          <a href="{% if current_user.is_authenticated %}{% if current_user.is_admin %}{{ url_for('admin.elections') }}{% else %}{{ url_for('voter.elections') }}{% endif %}{% else %}{{ url_for('auth.login') }}{% endif %}" 
+             class="sidebar-nav-link {% if ('election' in cur_ep and 'turnout' not in cur_ep and 'bulletin' not in cur_ep) or cur_ep in ('voter.elections', 'voter.election_detail', 'voter.cast_vote', 'admin.elections', 'admin.new_election', 'admin.edit_election', 'admin.manage_candidates', 'admin.manage_eligibility') %}active{% endif %}"
+             title="Cast Vote — Candidate selection and AES-256-GCM encrypted ballot submission">
+            <i class="bi bi-check2-square nav-icon"></i>
+            <span>Cast Vote</span>
+          </a>
+        </li>
+
+        <!-- 3. My Receipts -> View and verify SHA-256 / Ed25519 voting receipts -->
+        <li class="sidebar-menu-item">
+          <a href="{% if current_user.is_authenticated and not current_user.is_admin %}{{ url_for('voter.verify_receipt_page') }}{% else %}{{ url_for('public.receipt_verifier') }}{% endif %}" 
+             class="sidebar-nav-link {% if cur_ep in ('voter.verify_receipt_page', 'public.receipt_verifier', 'voter.voting_status', 'public.view_single_receipt', 'voter.show_receipt') %}active{% endif %}"
+             title="My Receipts — View and verify SHA-256 / Ed25519 voting receipts">
+            <i class="bi bi-receipt nav-icon"></i>
+            <span>My Receipts</span>
+          </a>
+        </li>
+
+        <!-- 4. Cryptography Lab -> Interactive demos & Cryptographic Process Visualizer -->
+        <li class="sidebar-menu-item">
+          <a href="{% if current_user.is_authenticated and current_user.is_admin %}{{ url_for('admin.crypto_lab') }}{% elif current_user.is_authenticated %}{{ url_for('voter.crypto_lab') }}{% else %}{{ url_for('admin.crypto_lab') }}{% endif %}" 
+             class="sidebar-nav-link {% if 'crypto_lab' in cur_ep %}active{% endif %}"
+             title="Cryptography Lab — Interactive demos (AES-GCM, SHA-256, Argon2id, Ed25519) & Visualizer">
+            <i class="bi bi-cpu nav-icon"></i>
+            <span>Cryptography Lab</span>
+          </a>
+        </li>
+
+        <!-- 5. Security Demo -> Mandatory Duplicate Voting and Ballot Modification Attack demonstrations -->
+        <li class="sidebar-menu-item">
+          <a href="{{ url_for('admin.security_demo') }}" 
+             class="sidebar-nav-link {% if 'security_demo' in cur_ep %}active{% endif %}"
+             title="Security Demo — Duplicate Voting and Ballot Modification Attack demonstrations">
+            <i class="bi bi-shield-lock nav-icon"></i>
+            <span>Security Demo</span>
+          </a>
+        </li>
+
+        <!-- 6. Results -> Election results and participation statistics -->
+        <li class="sidebar-menu-item">
+          <a href="{% if current_user.is_authenticated and current_user.is_admin %}{{ url_for('admin.turnout') }}{% else %}{{ url_for('public.bulletin_board') }}{% endif %}" 
+             class="sidebar-nav-link {% if cur_ep in ('admin.turnout', 'public.bulletin_board', 'public.election_results') %}active{% endif %}"
+             title="Results — Election results and participation statistics">
+            <i class="bi bi-bar-chart-line nav-icon"></i>
+            <span>Results</span>
+          </a>
+        </li>
+
+        <!-- 7. Audit Logs -> Hash-chained event log and integrity verification -->
+        <li class="sidebar-menu-item">
+          <a href="{{ url_for('admin.audit_log') }}" 
+             class="sidebar-nav-link {% if 'audit' in cur_ep %}active{% endif %}"
+             title="Audit Logs — Hash-chained event log and integrity verification">
+            <i class="bi bi-journal-text nav-icon"></i>
+            <span>Audit Logs</span>
+          </a>
+        </li>
+
+        <!-- 8. About -> Project architecture, Variants A/B/C, and privacy model -->
+        <li class="sidebar-menu-item">
+          <a href="{{ url_for('public.privacy_guide') }}" 
+             class="sidebar-nav-link {% if cur_ep in ('public.privacy_guide', 'voter.privacy_guide', 'public.variant_comparison', 'admin.variant_comparison') %}active{% endif %}"
+             title="About — Project architecture, Variants A/B/C, and privacy model">
+            <i class="bi bi-info-circle nav-icon"></i>
+            <span>About</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- 3. Bottom Footer (Theme Switch & Session Action) -->
+    <div class="sidebar-bottom-section">
+      <!-- Session Action: Sign In or Sign Out -->
+      <div class="sidebar-session-action">
+        {% if current_user.is_authenticated %}
+          <form method="post" action="{{ url_for('auth.logout') }}" style="margin:0;width:100%;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="sidebar-action-btn sidebar-logout-btn" title="Sign out of current account">
+              <i class="bi bi-box-arrow-right nav-icon"></i>
+              <span>Sign Out ({{ current_user.username }})</span>
+            </button>
+          </form>
+        {% else %}
+          <a href="{{ url_for('auth.login') }}" class="sidebar-action-btn sidebar-login-btn" title="Sign in with demo voter or admin accounts">
+            <i class="bi bi-box-arrow-in-right nav-icon"></i>
+            <span>Sign In / Demo</span>
+          </a>
+        {% endif %}
+      </div>
+
+      <!-- Theme Switch Bar -->
+      <div class="sidebar-theme-bar">
+        <span class="sidebar-theme-label">
+          <i class="bi bi-palette"></i>
+          Theme
+        </span>
+        <button type="button" 
+                class="sidebar-theme-switch-btn" 
+                id="sidebar-theme-toggle" 
+                role="switch" 
+                aria-label="Toggle dark mode" 
+                title="Toggle Light / Dark Theme">
+          <span class="theme-switch-icon theme-icon-sun" aria-hidden="true">
+            <i class="bi bi-sun-fill"></i>
+          </span>
+          <span class="theme-switch-icon theme-icon-moon" aria-hidden="true">
+            <i class="bi bi-moon-stars-fill"></i>
+          </span>
+          <div class="theme-switch-thumb">
+            <i class="bi bi-moon-stars-fill" id="theme-thumb-icon"></i>
+          </div>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-content">
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Open menu" aria-expanded="false">
+        <i class="bi bi-list" style="font-size: 1.25rem;"></i>
+      </button>
+      <span class="topbar-title">{% block topbar_title %}CipherBallot{% endblock %}</span>
+      <div class="topbar-actions" style="display:flex;align-items:center;gap:1rem;">
+        <a href="{{ url_for('public.variant_comparison') }}" class="badge" style="background:var(--primary-light);color:var(--primary-dark);font-weight:600;font-size:0.75rem;text-decoration:none;" title="Compare Variants A, B, and C">
+          Variants {{ project_variant }} (RSA+AES-GCM • Ed25519)
+        </a>
+        {% if current_user.is_authenticated %}
+          <span style="font-size:.85rem;color:var(--text-muted);display:flex;align-items:center;gap:0.4rem;">
+            <i class="bi bi-person-circle"></i> {{ current_user.display_name }}
+            <span class="badge badge-primary" style="margin-left:.2rem;text-transform:uppercase;">{{ current_user.role }}</span>
+          </span>
+        {% else %}
+          <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-primary">Sign In</a>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="page-content" id="main-content">
+      <!-- Flash messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-messages" style="margin-bottom:1.25rem">
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}" role="alert" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>{{ message }}</span>
+                <button class="alert-close" aria-label="Dismiss">&times;</button>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer Disclaimer -->
+    <footer style="padding:1.25rem 2rem;text-align:center;font-size:0.78rem;color:var(--text-muted);border-top:1px solid var(--border);background:var(--card);margin-top:auto;">
+      <div style="font-weight:600;color:var(--text);margin-bottom:0.25rem;">
+        CipherBallot — Secure Online Voting Prototype (Variant {{ project_variant }})
+      </div>
+      <div>
+        ⚠️ <strong>Classroom Demonstration Only:</strong> Educational prototype for cryptography coursework. Not suitable for governmental, legally binding, or production elections.
+      </div>
+    </footer>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

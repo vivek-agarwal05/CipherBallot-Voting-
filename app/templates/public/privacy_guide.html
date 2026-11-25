@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Security &amp; Privacy Guide — CipherBallot{% endblock %}
+{% block topbar_title %}Security &amp; Privacy Guide{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.75rem;">
+  <div style="display:inline-block;padding:0.25rem 0.65rem;background:var(--primary-light);color:var(--primary-dark);border-radius:9999px;font-size:0.75rem;font-weight:700;margin-bottom:0.5rem;">
+    SECURITY ARCHITECTURE DOCUMENTATION
+  </div>
+  <h1 style="font-size:1.75rem;font-weight:700;color:var(--navy);margin-bottom:0.5rem;">
+    CipherBallot Cryptographic &amp; Privacy Model
+  </h1>
+  <p style="font-size:0.95rem;color:var(--text-muted);max-width:850px;line-height:1.6;">
+    An honest appraisal of the cryptographic primitives, architectural safeguards, assumptions, and privacy trade-offs implemented in this college educational prototype.
+  </p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr;gap:1.5rem;max-width:960px;">
+
+  <!-- Warning Banner -->
+  <div class="card" style="border-left:4px solid var(--warning);background:var(--warning-light);padding:1.25rem;">
+    <div style="display:flex;gap:0.75rem;">
+      <i class="bi bi-exclamation-triangle-fill" style="color:var(--warning);font-size:1.5rem;"></i>
+      <div>
+        <h3 style="font-size:1rem;font-weight:700;color:#92400e;margin:0 0 0.25rem 0;">
+          Educational Prototype — Not Suitable For Production or Binding Elections
+        </h3>
+        <p style="font-size:0.875rem;color:#78350f;line-height:1.5;margin:0;">
+          CipherBallot demonstrates fundamental cryptographic principles (authenticated symmetric encryption, digital signatures, password hashing, and hash-chain audit logs).
+          It does <strong>not</strong> implement an end-to-end verifiable cryptographic voting system (such as Helios, ElectionGuard, or Neff mixnets) and does not guarantee coercion resistance or protection against a compromised server administrator.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Primitives Table -->
+  <div class="card" style="padding:1.5rem;">
+    <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:1rem;color:var(--navy);">
+      <i class="bi bi-key"></i> Cryptographic Primitives Employed
+    </h2>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Security Function</th>
+            <th>Algorithm / Standard</th>
+            <th>Parameters</th>
+            <th>Why Chosen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>User Password Hashing</strong></td>
+            <td><code>Argon2id</code></td>
+            <td>Memory=64MB, Iterations=2, Parallelism=2</td>
+            <td>Resistant to GPU/ASIC cracking and side-channel cache attacks (RFC 9106).</td>
+          </tr>
+          <tr>
+            <td><strong>Hybrid Key Encapsulation</strong></td>
+            <td><code>RSA-2048 OAEP (SHA-256)</code></td>
+            <td>Unique AES-256 key per ballot wrapped with RSA public key</td>
+            <td>Combines asymmetric key distribution (Unit III) with fast symmetric AEAD encryption (Unit II).</td>
+          </tr>
+          <tr>
+            <td><strong>Ballot Confidentiality &amp; Integrity</strong></td>
+            <td><code>AES-256-GCM</code></td>
+            <td>Ephemeral 256-bit key, 96-bit random nonce, 128-bit tag</td>
+            <td>Authenticated encryption provides confidentiality and detects ciphertext modification.</td>
+          </tr>
+          <tr>
+            <td><strong>Transport Security</strong></td>
+            <td><code>HTTPS / TLS (X.509)</code></td>
+            <td>Local self-signed X.509 cert (RSA-2048 + SHA-256)</td>
+            <td>Protects voter credentials, session cookies, and ballots in transit from network sniffing.</td>
+          </tr>
+          <tr>
+            <td><strong>Ballot Binding (AAD)</strong></td>
+            <td><code>AES-GCM AAD</code></td>
+            <td>Canonical JSON of (election_id, ballot_id)</td>
+            <td>Prevents ciphertext transplantation across elections or ballot slots.</td>
+          </tr>
+          <tr>
+            <td><strong>Verifiable Receipt Digest</strong></td>
+            <td><code>SHA-256</code></td>
+            <td>256-bit cryptographic digest</td>
+            <td>One-way hash over ciphertext parameters allowing bulletin board lookup without decryption.</td>
+          </tr>
+          <tr>
+            <td><strong>Published Result Signature</strong></td>
+            <td><code>Ed25519</code></td>
+            <td>RFC 8032 Curve25519 (Edwards curve)</td>
+            <td>Fast, deterministic, collision-resistant signatures to authenticate certified election outcomes.</td>
+          </tr>
+          <tr>
+            <td><strong>Tamper-Evident Audit Chain</strong></td>
+            <td><code>SHA-256 Chain</code></td>
+            <td>prev_hash || canonical_payload</td>
+            <td>Detects insertion, deletion, or reordering of audit events without central PKI.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Privacy Boundaries & Architecture -->
+  <div class="card" style="padding:1.5rem;">
+    <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:1rem;color:var(--navy);">
+      <i class="bi bi-shield-split"></i> Architectural Separation of Identity &amp; Ballots
+    </h2>
+    <p style="font-size:0.9rem;color:var(--text-muted);line-height:1.6;margin-bottom:1rem;">
+      In traditional naive voting software, a single row often stores <code>(user_id, candidate_id)</code>, completely destroying voter secrecy.
+      CipherBallot strictly isolates database tables to eliminate direct identity linkage:
+    </p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+      <div style="background:var(--bg-secondary);padding:1rem;border-radius:6px;border:1px solid var(--border);">
+        <h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.5rem;color:var(--primary);">
+          Table: <code>participations</code>
+        </h4>
+        <ul style="font-size:0.825rem;color:var(--text-muted);padding-left:1.2rem;margin:0;">
+          <li>Stores <code>(election_id, voter_id, cast_at)</code></li>
+          <li>Enforces unique constraint preventing duplicate voting</li>
+          <li><strong>NEVER contains candidate choice</strong></li>
+          <li><strong>NEVER contains ballot ID or foreign key</strong></li>
+        </ul>
+      </div>
+
+      <div style="background:var(--bg-secondary);padding:1rem;border-radius:6px;border:1px solid var(--border);">
+        <h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.5rem;color:var(--success);">
+          Table: <code>encrypted_ballots</code>
+        </h4>
+        <ul style="font-size:0.825rem;color:var(--text-muted);padding-left:1.2rem;margin:0;">
+          <li>Stores <code>(random_ballot_uuid, nonce, ciphertext, tag)</code></li>
+          <li>Candidate choice is sealed under AES-256-GCM</li>
+          <li><strong>NEVER contains voter ID column</strong></li>
+          <li>No relationship or foreign key to <code>participations</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="font-size:1rem;font-weight:600;margin:1.25rem 0 0.5rem 0;">Residual Privacy Trade-offs &amp; Risks</h3>
+    <ul style="font-size:0.875rem;color:var(--text-muted);line-height:1.6;padding-left:1.25rem;">
+      <li>
+        <strong>Timestamp Correlation Risk:</strong> In Variant B, an attacker correlating server access logs or database insertion timestamps could link <code>participations</code> with <code>encrypted_ballots</code>. <em>Mitigation:</em> <strong>Variant C</strong> introduces two-phase unlinked anonymous voting tokens.
+      </li>
+      <li>
+        <strong>Privileged Insider Threat:</strong> An administrator holding the RSA private key can decrypt individual ballots after election close. Production systems require threshold cryptography or homomorphic tallying.
+      </li>
+      <li>
+        <strong>Coercion &amp; Vote Selling:</strong> Verifiable receipts prove inclusion without revealing candidate choices, though formal coercion resistance requires receipt-falsification mechanisms.
+      </li>
+    </ul>
+    <div style="margin-top:1.25rem;">
+      <a href="{{ url_for('public.variant_comparison') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-diagram-3"></i> Compare Variants A, B &amp; C Side-by-Side &rarr;
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
