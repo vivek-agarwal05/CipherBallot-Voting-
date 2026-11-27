@@ -3,7 +3,7 @@ app/public/routes.py — Public routes (no authentication required).
 """
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, abort, jsonify, redirect, url_for, flash
-from ..extensions import db
+from ..extensions import db, limiter
 from ..models import Election, Receipt, EncryptedBallot, PublishedResult, Candidate
 from ..services.receipts import verify_receipt
 from ..services.voting import _check_election_timing, cast_vote_with_token
@@ -188,6 +188,7 @@ def privacy_guide():
 
 
 @public_bp.route('/health')
+@limiter.exempt
 def health_check():
     """System health check endpoint."""
     return jsonify({

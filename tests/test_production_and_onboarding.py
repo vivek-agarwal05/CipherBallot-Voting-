@@ -318,3 +318,17 @@ def test_password_visibility_toggle_present_on_auth_forms(client, db, admin_user
     assert r_acct.status_code == 200
     assert b'data-password-toggle="current_password"' in r_acct.data
     assert b'data-password-toggle="new_password"' in r_acct.data
+
+
+def test_health_endpoint_exempt_from_rate_limit(tmp_path, monkeypatch):
+    """Health check endpoint must never return 429 even under frequent Render polling."""
+    prod_db = tmp_path / 'health_prod.db'
+    monkeypatch.setenv('SECRET_KEY', 'health-secret-key-for-testing-32-chars!!')
+    monkeypatch.setenv('DATABASE_URL', f'sqlite:///{prod_db}')
+    monkeypatch.setenv('SESSION_COOKIE_SECURE', 'false')
+    monkeypatch.setenv('AUTO_INIT_KEYS', 'false')
+    health_app = create_app('production')
+    client = health_app.test_client()
+    for _ in range(70):
+        resp = client.get('/health')
+        assert resp.status_code == 200

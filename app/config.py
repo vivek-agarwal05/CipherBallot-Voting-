@@ -67,7 +67,7 @@ class Config:
     # ------------------------------------------------------------------ #
     # Rate Limiting & Account Lockout                                     #
     # ------------------------------------------------------------------ #
-    RATELIMIT_DEFAULT: str = "200 per day;50 per hour"
+    RATELIMIT_DEFAULT: str = "5000 per day;1000 per hour"
     RATELIMIT_STORAGE_URL: str = (
         os.environ.get('RATELIMIT_STORAGE_URL')
         or os.environ.get('REDIS_URL')
