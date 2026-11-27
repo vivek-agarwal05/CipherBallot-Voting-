@@ -64,6 +64,7 @@ def get_election_summary(election_id: int) -> dict:
         'total_eligible': total_eligible,
         'total_voted': total_voted,
         'total_ballots': total_ballots,
+        'cast_count': cast_count,
         'turnout_pct': turnout_pct,
         'candidate_count': len(election.candidates)
     }

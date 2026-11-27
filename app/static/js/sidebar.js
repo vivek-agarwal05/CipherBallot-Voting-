@@ -48,6 +48,12 @@
 
     backdrop.addEventListener('click', closeMobileSidebar);
 
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+        closeMobileSidebar();
+      }
+    });
+
     sidebar.querySelectorAll('.sidebar-nav-link').forEach((link) => {
       link.addEventListener('click', () => {
         if (window.innerWidth <= 768) {

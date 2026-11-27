@@ -19,7 +19,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-group" style="margin-bottom:1rem;">
         <label for="receipt_code" style="font-weight:600;font-size:0.875rem;">Enter Your Receipt Code:</label>
-        <div style="display:flex;gap:0.75rem;margin-top:0.35rem;">
+        <div style="display:flex;gap:0.75rem;margin-top:0.35rem;flex-wrap:wrap;">
           <input type="text" id="receipt_code" name="receipt_code" class="form-control"
                  placeholder="e.g. 43-character token issued after voting"
                  value="{{ receipt_code or '' }}" required autofocus style="font-family:monospace;font-size:0.9rem;">

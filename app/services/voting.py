@@ -249,8 +249,7 @@ def cast_vote_atomic(election_id: int, voter_id: int, candidate_id: int) -> tupl
         payload={
             'election_id': election_id,
             'variant': variant,
-            'ballot_id': ballot_id,
-            'receipt_prefix': (receipt_code[:8] + '...') if receipt_code else 'none (Variant A)',
+            'participation_recorded': True,
             'algorithm': 'RSA-OAEP+AES-256-GCM',
         },
     )

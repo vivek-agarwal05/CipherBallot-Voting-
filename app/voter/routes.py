@@ -6,6 +6,7 @@ from flask_login import login_required, current_user
 from ..extensions import db
 from ..models import Election, Candidate, ElectionEligibility, Participation, EncryptedBallot, Receipt
 from ..services.voting import (
+    _check_election_timing,
     check_voter_eligibility,
     cast_vote_atomic,
     issue_anonymous_token,
@@ -92,11 +93,12 @@ def cast_vote(election_id: int):
     candidates = [c for c in election.candidates if c.is_active]
 
     if variant == 'C':
+        is_open, is_expired = _check_election_timing(election)
         if not status_info['eligible']:
             flash(status_info['reason'], 'warning')
             return redirect(url_for('voter.election_detail', election_id=election_id))
-        if election.status != 'open':
-            flash('This election is not open for voting.', 'warning')
+        if not is_open or is_expired:
+            flash(status_info['reason'] if status_info['can_vote'] is False else 'This election is not open for voting.', 'warning')
             return redirect(url_for('voter.election_detail', election_id=election_id))
 
         issued_token = None

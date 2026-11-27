@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, abort, jsonify, redirect,
 from ..extensions import db
 from ..models import Election, Receipt, EncryptedBallot, PublishedResult, Candidate
 from ..services.receipts import verify_receipt
-from ..services.voting import cast_vote_with_token
+from ..services.voting import _check_election_timing, cast_vote_with_token
 from ..security.signatures import verify_document_signature
 from ..security.canonical import canonical_json
 import json
@@ -49,7 +49,13 @@ def bulletin_board(election_id: int | None = None):
     receipts = []
     
     if election_id:
-        selected_election = db.session.get(Election, election_id)
+        selected_election = (
+            db.session.query(Election)
+            .filter(Election.id == election_id, Election.status.in_(['open', 'closed', 'published']))
+            .first()
+        )
+        if selected_election is None:
+            abort(404)
     elif elections:
         selected_election = elections[0]
 
@@ -137,7 +143,8 @@ def anonymous_cast(election_id: int):
     if (election.variant or 'B').upper() != 'C':
         flash('Anonymous token casting is only supported for Variant C elections.', 'warning')
         return redirect(url_for('public.index'))
-    if election.status != 'open':
+    is_open, is_expired = _check_election_timing(election)
+    if election.status != 'open' or not is_open or is_expired:
         flash('This election is not open for voting.', 'warning')
         return redirect(url_for('public.index'))
 

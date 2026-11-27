@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Too Many Requests — CipherBallot{% endblock %}
+{% block topbar_title %}429 Too Many Requests{% endblock %}
+{% block content %}
+<div style="text-align:center;padding:4rem 1rem">
+  <div style="font-size:4rem;font-weight:800;color:var(--warning)">429</div>
+  <h1 style="margin:.5rem 0 1rem">Too Many Requests</h1>
+  <p style="color:var(--text-muted);margin-bottom:1.5rem">Rate limit exceeded. Please wait a minute before trying again.</p>
+  <a href="{{ url_for('public.index') }}" class="btn btn-primary">Go Home</a>
+</div>
+{% endblock %}

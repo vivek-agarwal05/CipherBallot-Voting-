@@ -46,8 +46,11 @@
           <td>{{ summary.candidate_count }}</td>
           <td>{{ summary.total_eligible }}</td>
           <td>
-            <strong>{{ summary.total_voted }}</strong>
+            <strong>{{ summary.cast_count }}</strong>
             <span style="font-size:0.75rem;color:var(--text-muted);">({{ summary.turnout_pct }}%)</span>
+            {% if e.variant == 'C' and summary.total_voted != summary.cast_count %}
+              <div style="font-size:0.7rem;color:var(--text-muted);">{{ summary.total_voted }} token(s) issued</div>
+            {% endif %}
           </td>
           <td>
             <span class="badge badge-{{ e.status }}" style="text-transform:capitalize;">

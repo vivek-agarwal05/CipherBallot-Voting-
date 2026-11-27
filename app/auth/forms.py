@@ -1,9 +1,9 @@
 """
-app/auth/forms.py — WTForms form definitions for authentication.
+app/auth/forms.py — WTForms form definitions for authentication & password recovery.
 """
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, PasswordField, StringField, SubmitField, SelectField
-from wtforms.validators import DataRequired, Length, Regexp, EqualTo, Email
+from wtforms import BooleanField, PasswordField, StringField, SubmitField
+from wtforms.validators import DataRequired, Length, Regexp, EqualTo
 
 
 class LoginForm(FlaskForm):
@@ -14,9 +14,9 @@ class LoginForm(FlaskForm):
     generic error messages that do not reveal whether a username exists.
     """
     username = StringField(
-        'Username',
+        'Student ID / Username',
         validators=[
-            DataRequired(message='Username is required.'),
+            DataRequired(message='Username or Student ID is required.'),
             Length(min=3, max=64, message='Username must be 3–64 characters.'),
             Regexp(
                 r'^[a-zA-Z0-9_.\-]+$',
@@ -25,7 +25,7 @@ class LoginForm(FlaskForm):
         ],
         render_kw={
             'autocomplete': 'username',
-            'placeholder': 'your_username',
+            'placeholder': 'your_username or STU-...',
             'autofocus': True,
         },
     )
@@ -50,11 +50,11 @@ class LoginForm(FlaskForm):
 class RegisterForm(FlaskForm):
     """
     Student Voter Registration Form with Criteria & ID Verification.
-    
+
     Criteria enforced:
       1. Student ID verification against authoritative institutional roster.
       2. 1:1 mapping (preventing duplicate registrations of the same student).
-      3. Academic department criteria validation.
+      3. Academic department & institutional email criteria validation.
       4. Argon2id password complexity criteria (length, uppercase, lowercase, numbers, symbols).
     """
     student_id = StringField(
@@ -112,15 +112,16 @@ class RegisterForm(FlaskForm):
         },
     )
 
-    department = SelectField(
+    department = StringField(
         'Academic Department',
-        choices=[
-            ('CS Department', 'Computer Science Department'),
-            ('Information Security', 'Information Security & Cyber Forensics'),
-            ('Data Science', 'Data Science & Artificial Intelligence'),
-            ('ECE Department', 'Electronics & Comm Department'),
+        validators=[
+            DataRequired(message='Department is required.'),
+            Length(min=2, max=128, message='Department must be 2–128 characters.'),
         ],
-        validators=[DataRequired(message='Department selection is required.')],
+        render_kw={
+            'list': 'department-suggestions',
+            'placeholder': 'e.g. CS Department',
+        },
     )
 
     email = StringField(
@@ -163,3 +164,40 @@ class RegisterForm(FlaskForm):
     )
 
     submit = SubmitField('Verify ID & Register')
+
+
+class ForgotPasswordForm(FlaskForm):
+    """Request a single-use password reset email."""
+    identifier = StringField(
+        'Username, Student ID, or Institutional Email',
+        validators=[
+            DataRequired(message='Please enter your username, Student ID, or email.'),
+            Length(min=3, max=128),
+        ],
+        render_kw={
+            'placeholder': 'e.g. alice, STU-CS-2024-001, or alice@univ.edu',
+            'autofocus': True,
+        },
+    )
+    submit = SubmitField('Send Password Reset Link')
+
+
+class ResetPasswordForm(FlaskForm):
+    """Set a new password using a signed reset token."""
+    password = PasswordField(
+        'New Password',
+        validators=[
+            DataRequired(message='New password is required.'),
+            Length(min=8, max=256, message='Password must be at least 8 characters.'),
+        ],
+        render_kw={'autocomplete': 'new-password', 'placeholder': '••••••••'},
+    )
+    confirm_password = PasswordField(
+        'Confirm New Password',
+        validators=[
+            DataRequired(message='Please confirm your password.'),
+            EqualTo('password', message='Passwords must match.'),
+        ],
+        render_kw={'autocomplete': 'new-password', 'placeholder': '••••••••'},
+    )
+    submit = SubmitField('Reset Password')

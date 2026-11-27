@@ -15,6 +15,12 @@
       <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">{{ election.title }}</h1>
       <p style="color:var(--text-muted);font-size:0.9rem;">
         {{ election.group_dept or 'Institutional Election' }}
+        {% if election.start_dt or election.end_dt %}
+          • Window (UTC):
+          {{ election.start_dt.strftime('%Y-%m-%d %H:%M') if election.start_dt else 'Immediate' }}
+          &rarr;
+          {{ election.end_dt.strftime('%Y-%m-%d %H:%M') if election.end_dt else 'Manual close' }}
+        {% endif %}
       </p>
     </div>
     <div>

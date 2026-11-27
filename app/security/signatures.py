@@ -37,54 +37,44 @@ from flask import current_app
 # Key loading
 # ---------------------------------------------------------------------------
 
-def _load_private_key() -> Ed25519PrivateKey:
-    """
-    Load the Ed25519 private key from the PEM file at SIGNING_PRIVATE_KEY_PATH.
-
-    Raises:
-        RuntimeError: If the key file is missing or unreadable.
-    """
-    path_str: str = current_app.config.get('SIGNING_PRIVATE_KEY_PATH', '')
+def _load_pem_bytes(pem_env_key: str, path_key: str, label: str) -> bytes:
+    """Load PEM key bytes from config env string first, then fallback to file path."""
+    pem_inline: str | None = current_app.config.get(pem_env_key)
+    if pem_inline:
+        return pem_inline.replace('\\n', '\n').encode('utf-8')
+    path_str: str = current_app.config.get(path_key, '')
     path = Path(path_str)
-
     if not path.exists():
         raise RuntimeError(
-            f"Ed25519 private key not found at '{path}'. "
-            "Run: python scripts/init_keys.py"
+            f"{label} not found at '{path}' (and {pem_env_key} is not set). "
+            "Run: python scripts/init_keys.py --ensure-missing"
         )
+    return path.read_bytes()
 
-    pem_bytes = path.read_bytes()
-    # load_pem_private_key expects bytes; password=None for unencrypted key
+
+def _load_private_key() -> Ed25519PrivateKey:
+    """
+    Load the Ed25519 private key from env or PEM file at SIGNING_PRIVATE_KEY_PATH.
+    """
+    pem_bytes = _load_pem_bytes(
+        'SIGNING_PRIVATE_KEY_PEM', 'SIGNING_PRIVATE_KEY_PATH', 'Ed25519 private key'
+    )
     key = load_pem_private_key(pem_bytes, password=None)
     if not isinstance(key, Ed25519PrivateKey):
-        raise RuntimeError(
-            f"Key at '{path}' is not an Ed25519 private key."
-        )
+        raise RuntimeError("Configured Ed25519 private key is invalid.")
     return key
 
 
 def _load_public_key() -> Ed25519PublicKey:
     """
-    Load the Ed25519 public key from the PEM file at SIGNING_PUBLIC_KEY_PATH.
-
-    Raises:
-        RuntimeError: If the key file is missing or unreadable.
+    Load the Ed25519 public key from env or PEM file at SIGNING_PUBLIC_KEY_PATH.
     """
-    path_str: str = current_app.config.get('SIGNING_PUBLIC_KEY_PATH', '')
-    path = Path(path_str)
-
-    if not path.exists():
-        raise RuntimeError(
-            f"Ed25519 public key not found at '{path}'. "
-            "Run: python scripts/init_keys.py"
-        )
-
-    pem_bytes = path.read_bytes()
+    pem_bytes = _load_pem_bytes(
+        'SIGNING_PUBLIC_KEY_PEM', 'SIGNING_PUBLIC_KEY_PATH', 'Ed25519 public key'
+    )
     key = load_pem_public_key(pem_bytes)
     if not isinstance(key, Ed25519PublicKey):
-        raise RuntimeError(
-            f"Key at '{path}' is not an Ed25519 public key."
-        )
+        raise RuntimeError("Configured Ed25519 public key is invalid.")
     return key
 
 

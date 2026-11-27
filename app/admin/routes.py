@@ -1,18 +1,21 @@
 """
 app/admin/routes.py — Admin blueprint routes (role='admin').
 """
+import csv
+import io
 import json
+import re
 import secrets
 import uuid
 import logging
 from datetime import datetime, timezone
 
 from flask import (
-    Blueprint, abort, flash, redirect,
+    Blueprint, abort, current_app, flash, redirect,
     render_template, request, url_for, jsonify
 )
 from flask_login import current_user, login_required
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from cryptography.exceptions import InvalidTag
 
 from ..extensions import db
@@ -28,7 +31,12 @@ from ..security.ballots import (
     compute_ballot_digest,
 )
 from ..security.canonical import canonical_json
-from ..security.passwords import hash_password
+from ..security.email import (
+    is_email_configured,
+    send_password_reset_email,
+    send_verification_pin_email,
+)
+from ..security.passwords import generate_password_reset_token, hash_password
 from ..security.signatures import get_public_key_hex, sign_document
 from ..services.tally import tally_election, publish_election_results
 from ..services.elections import get_election_summary
@@ -41,6 +49,22 @@ admin_bp = Blueprint('admin', __name__)
 def _require_admin():
     if not current_user.is_authenticated or current_user.role != 'admin':
         abort(403)
+
+
+def _parse_utc_dt(raw: str | None) -> tuple[datetime | None, str | None]:
+    """Parse an HTML datetime-local string (YYYY-MM-DDTHH:MM) into UTC-aware datetime."""
+    val = (raw or '').strip()
+    if not val:
+        return None, None
+    try:
+        dt = datetime.fromisoformat(val)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt, None
+    except ValueError:
+        return None, f'Invalid date/time format: {val!r}. Expected YYYY-MM-DDTHH:MM.'
 
 
 # ---------------------------------------------------------------------------
@@ -101,15 +125,25 @@ def new_election():
         description = request.form.get('description', '').strip()
         group_dept = request.form.get('group_dept', '').strip()
         variant = request.form.get('variant', 'B').strip().upper()
+        start_dt, err_s = _parse_utc_dt(request.form.get('start_dt'))
+        end_dt, err_e = _parse_utc_dt(request.form.get('end_dt'))
 
         if not title:
             flash('Election title is required.', 'danger')
+            return render_template('admin/election_form.html', election=None)
+        if err_s or err_e:
+            flash(err_s or err_e, 'danger')
+            return render_template('admin/election_form.html', election=None)
+        if start_dt and end_dt and end_dt <= start_dt:
+            flash('Closing date/time must be after opening date/time.', 'danger')
             return render_template('admin/election_form.html', election=None)
 
         election = Election(
             title=title,
             description=description or None,
             group_dept=group_dept or None,
+            start_dt=start_dt,
+            end_dt=end_dt,
             created_by=current_user.id,
             variant=variant if variant in ('A', 'B', 'C') else 'B',
             status='draft'
@@ -158,17 +192,29 @@ def edit_election(election_id: int):
             if election.status in ('closed', 'published'):
                 flash('Cannot modify details of a closed or published election.', 'warning')
             else:
-                election.title = request.form.get('title', election.title).strip()
-                election.description = request.form.get('description', '').strip() or None
-                election.group_dept = request.form.get('group_dept', '').strip() or None
-                db.session.commit()
-                append_audit_event(
-                    event_type='election.updated',
-                    actor_category='admin',
-                    actor_ref=current_user.username,
-                    payload={'election_id': election.id, 'title': election.title}
-                )
-                flash('Election details updated.', 'success')
+                new_title = request.form.get('title', '').strip()
+                start_dt, err_s = _parse_utc_dt(request.form.get('start_dt'))
+                end_dt, err_e = _parse_utc_dt(request.form.get('end_dt'))
+                if not new_title:
+                    flash('Election title cannot be empty.', 'danger')
+                elif err_s or err_e:
+                    flash(err_s or err_e, 'danger')
+                elif start_dt and end_dt and end_dt <= start_dt:
+                    flash('Closing date/time must be after opening date/time.', 'danger')
+                else:
+                    election.title = new_title
+                    election.description = request.form.get('description', '').strip() or None
+                    election.group_dept = request.form.get('group_dept', '').strip() or None
+                    election.start_dt = start_dt
+                    election.end_dt = end_dt
+                    db.session.commit()
+                    append_audit_event(
+                        event_type='election.updated',
+                        actor_category='admin',
+                        actor_ref=current_user.username,
+                        payload={'election_id': election.id, 'title': election.title}
+                    )
+                    flash('Election details updated.', 'success')
 
         elif action == 'add_candidate':
             if election.status != 'draft':
@@ -195,24 +241,34 @@ def edit_election(election_id: int):
                     flash(f'Candidate "{name}" added.', 'success')
 
         elif action == 'toggle_eligibility':
-            voter_id = int(request.form.get('voter_id', 0))
-            existing = (
-                db.session.query(ElectionEligibility)
-                .filter_by(election_id=election_id, voter_id=voter_id)
-                .first()
-            )
-            if existing:
-                new_status = 'ineligible' if existing.status == 'eligible' else 'eligible'
-                existing.status = new_status
+            voter_id_raw = request.form.get('voter_id', '').strip()
+            if not voter_id_raw.isdigit():
+                flash('Invalid voter identifier.', 'danger')
             else:
-                existing = ElectionEligibility(
-                    election_id=election_id,
-                    voter_id=voter_id,
-                    status='eligible',
-                )
-                db.session.add(existing)
-            db.session.commit()
-            flash('Voter eligibility updated.', 'success')
+                voter_id = int(voter_id_raw)
+                voter = db.session.get(User, voter_id)
+                if not voter or voter.role != 'voter':
+                    flash('Voter account not found.', 'danger')
+                else:
+                    existing = (
+                        db.session.query(ElectionEligibility)
+                        .filter_by(election_id=election_id, voter_id=voter_id)
+                        .first()
+                    )
+                    if existing:
+                        new_status = 'ineligible' if existing.status == 'eligible' else 'eligible'
+                        existing.status = new_status
+                    else:
+                        existing = ElectionEligibility(
+                            election_id=election_id,
+                            voter_id=voter_id,
+                            status='eligible',
+                        )
+                        db.session.add(existing)
+                    db.session.commit()
+                    flash('Voter eligibility updated.', 'success')
+            if request.form.get('next') == 'eligibility':
+                return redirect(url_for('admin.manage_eligibility', election_id=election_id))
 
         return redirect(url_for('admin.edit_election', election_id=election_id))
 
@@ -257,12 +313,24 @@ def add_candidate(election_id: int):
 @login_required
 def deactivate_candidate(election_id: int, candidate_id: int):
     _require_admin()
+    election = db.session.get(Election, election_id)
+    if not election:
+        abort(404)
+    if election.status != 'draft':
+        flash('Candidates can only be modified while the election is in Draft.', 'warning')
+        return redirect(url_for('admin.edit_election', election_id=election_id))
     c = db.session.get(Candidate, candidate_id)
     if not c or c.election_id != election_id:
         abort(404)
     c.is_active = not c.is_active
     db.session.commit()
     status_str = 'activated' if c.is_active else 'deactivated'
+    append_audit_event(
+        event_type=f'candidate.{status_str}',
+        actor_category='admin',
+        actor_ref=current_user.username,
+        payload={'election_id': election_id, 'candidate_id': candidate_id},
+    )
     flash(f'Candidate {c.display_name} {status_str}.', 'info')
     return redirect(url_for('admin.edit_election', election_id=election_id))
 
@@ -298,10 +366,23 @@ def add_single_voter_eligibility(election_id: int):
     election = db.session.get(Election, election_id)
     if not election:
         abort(404)
-    username = request.form.get('username', '').strip()
-    user = db.session.query(User).filter_by(username=username, role='voter').first()
+    ident = request.form.get('username', '').strip()
+    if not ident:
+        flash('Please enter a Student ID or username.', 'danger')
+        return redirect(url_for('admin.manage_eligibility', election_id=election_id))
+    user = (
+        db.session.query(User)
+        .filter(
+            User.role == 'voter',
+            or_(
+                func.lower(User.username) == ident.lower(),
+                func.upper(User.student_id) == ident.upper(),
+            ),
+        )
+        .first()
+    )
     if not user:
-        flash(f'Voter with username "{username}" not found.', 'danger')
+        flash(f'Voter with Student ID or username "{ident}" not found.', 'danger')
         return redirect(url_for('admin.manage_eligibility', election_id=election_id))
 
     existing = db.session.query(ElectionEligibility).filter_by(
@@ -404,7 +485,7 @@ def tally_election_page(election_id: int):
 @login_required
 def audit_log():
     _require_admin()
-    page = request.args.get('page', 1, type=int)
+    page = max(1, request.args.get('page', 1, type=int))
     search = request.args.get('q', '').strip()
     per_page = 25
 
@@ -417,13 +498,14 @@ def audit_log():
         )
 
     total = query.count()
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+    page = min(page, total_pages)
     events = (
         query.order_by(AuditEvent.id.desc())
         .offset((page - 1) * per_page)
         .limit(per_page)
         .all()
     )
-    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
 
     return render_template(
         'admin/audit.html',
@@ -492,13 +574,13 @@ def run_security_demo():
         'details': []
     }
 
-    demo_election = db.session.query(Election).filter(
-        Election.title.ilike('%Security Module Demo%')
+    demo_election = db.session.query(Election).filter_by(
+        title='[Sandbox] Security Demo Isolation Election'
     ).first()
     if not demo_election:
         demo_election = Election(
-            title='Security Module Demo Election',
-            description='Isolated demo election for live test demonstrations',
+            title='[Sandbox] Security Demo Isolation Election',
+            description='Isolated sandbox election for live security test demonstrations',
             group_dept='Security Lab',
             created_by=current_user.id,
             status='open',
@@ -509,6 +591,9 @@ def run_security_demo():
         c1 = Candidate(election_id=demo_election.id, display_name='Demo Option 1', is_active=True, display_order=0)
         c2 = Candidate(election_id=demo_election.id, display_name='Demo Option 2', is_active=True, display_order=1)
         db.session.add_all([c1, c2])
+        db.session.commit()
+    elif demo_election.status != 'open':
+        demo_election.status = 'open'
         db.session.commit()
 
     demo_voter = db.session.query(User).filter_by(username='eve').first()
@@ -766,10 +851,11 @@ def run_security_demo():
                 election_id=demo_election.id, voter_id=demo_voter.id
             ).first()
             if elig_row:
+                orig_elig_status = elig_row.status
                 elig_row.status = 'ineligible'
                 db.session.commit()
                 res_elig = check_voter_eligibility(demo_election.id, demo_voter.id)
-                elig_row.status = 'eligible'
+                elig_row.status = orig_elig_status
                 db.session.commit()
                 if not res_elig['can_vote'] and not res_elig['eligible']:
                     test5['details'].append("Step 2: Unauthorized / non-rostered voter blocked from ballot access (RBAC + eligibility guard).")
@@ -808,14 +894,17 @@ def run_security_demo():
 
 
 # ---------------------------------------------------------------------------
-# User Management
+# User Management & Institutional Roster Onboarding
 # ---------------------------------------------------------------------------
 
-@admin_bp.route('/users/')
-@admin_bp.route('/users')
-@login_required
-def users():
-    _require_admin()
+_STUDENT_ID_RE = re.compile(r'^[A-Za-z0-9_\-]{4,64}$')
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+
+
+def _render_users_page(
+    issued_pins: list[dict] | None = None,
+    generated_reset: dict | None = None,
+):
     all_users = (
         db.session.query(User)
         .order_by(User.role, User.username)
@@ -833,7 +922,22 @@ def users():
         .order_by(InstitutionalIdentity.is_claimed, InstitutionalIdentity.student_id)
         .all()
     )
-    return render_template('admin/users.html', users=all_users, identities=identities, locked_user_ids=locked_user_ids)
+    return render_template(
+        'admin/users.html',
+        users=all_users,
+        identities=identities,
+        locked_user_ids=locked_user_ids,
+        issued_pins=issued_pins or [],
+        generated_reset=generated_reset,
+    )
+
+
+@admin_bp.route('/users/')
+@admin_bp.route('/users')
+@login_required
+def users():
+    _require_admin()
+    return _render_users_page()
 
 
 @admin_bp.route('/registry/add', methods=['POST'])
@@ -844,15 +948,32 @@ def add_institutional_identity():
     full_name = request.form.get('full_name', '').strip()
     dept = request.form.get('department', '').strip()
     email = request.form.get('email', '').strip().lower()
-    raw_pin = request.form.get('verification_pin', '').strip() or f'PIN-{secrets.token_hex(3).upper()}'
+    raw_pin_input = request.form.get('verification_pin', '').strip()
+    send_email_requested = request.form.get('send_email') == 'on'
+
+    if raw_pin_input and len(raw_pin_input) < 4:
+        flash('Verification PIN must be at least 4 characters (or leave blank to auto-generate).', 'danger')
+        return redirect(url_for('admin.users'))
+    raw_pin = raw_pin_input or f'PIN-{secrets.token_hex(3).upper()}'
 
     if not (student_id and full_name and dept and email):
         flash('All fields are required to register an institutional student record.', 'danger')
+        return redirect(url_for('admin.users'))
+    if not _STUDENT_ID_RE.match(student_id):
+        flash('Student ID must be 4–64 characters using only letters, numbers, hyphens, and underscores.', 'danger')
+        return redirect(url_for('admin.users'))
+    if not _EMAIL_RE.match(email):
+        flash('Please provide a valid institutional email address.', 'danger')
         return redirect(url_for('admin.users'))
 
     existing = db.session.query(InstitutionalIdentity).filter_by(student_id=student_id).first()
     if existing:
         flash(f'Student ID "{student_id}" is already in the institutional registry.', 'warning')
+        return redirect(url_for('admin.users'))
+
+    existing_email = db.session.query(InstitutionalIdentity).filter_by(email=email).first()
+    if existing_email:
+        flash(f'Institutional email "{email}" is already assigned to another student record.', 'warning')
         return redirect(url_for('admin.users'))
 
     new_id = InstitutionalIdentity(
@@ -866,6 +987,17 @@ def add_institutional_identity():
     db.session.add(new_id)
     db.session.commit()
 
+    email_sent = False
+    if send_email_requested and is_email_configured():
+        email_sent, _ = send_verification_pin_email(
+            to_address=email,
+            full_name=full_name,
+            student_id=student_id,
+            department=dept,
+            raw_pin=raw_pin,
+            register_url=url_for('auth.register', _external=True),
+        )
+
     append_audit_event(
         event_type='institutional_registry.id_added',
         actor_category='admin',
@@ -875,15 +1007,252 @@ def add_institutional_identity():
             'department': dept,
             'name': full_name,
             'pin_protected': True,
+            'email_sent': email_sent,
         },
     )
 
-    flash(
-        f'Pre-approved student ID "{student_id}" ({full_name}) added. '
-        f'One-Time Verification PIN (share privately with student): {raw_pin}',
-        'success',
-    )
+    if email_sent:
+        flash(
+            f'Pre-approved student ID "{student_id}" ({full_name}) added and Verification PIN emailed to {email}.',
+            'success',
+        )
+    else:
+        flash(
+            f'Pre-approved student ID "{student_id}" ({full_name}) added. '
+            f'One-Time Verification PIN (share privately with student): {raw_pin}',
+            'success',
+        )
     return redirect(url_for('admin.users'))
+
+
+@admin_bp.route('/registry/import-csv', methods=['POST'])
+@login_required
+def import_institutional_csv():
+    """Bulk-import pre-approved institutional students from CSV."""
+    _require_admin()
+    uploaded = request.files.get('csv_file')
+    if not uploaded or not uploaded.filename:
+        flash('Please select a CSV file to upload.', 'danger')
+        return redirect(url_for('admin.users'))
+
+    try:
+        raw_text = uploaded.read().decode('utf-8-sig')
+    except UnicodeDecodeError:
+        flash('CSV file must be UTF-8 encoded.', 'danger')
+        return redirect(url_for('admin.users'))
+
+    reader = csv.DictReader(io.StringIO(raw_text))
+    if not reader.fieldnames:
+        flash('CSV file appears empty or missing header columns.', 'danger')
+        return redirect(url_for('admin.users'))
+
+    norm_fields = {f.strip().lower(): f for f in reader.fieldnames if f}
+    required_cols = {'student_id', 'full_name', 'department', 'email'}
+    if not required_cols.issubset(norm_fields.keys()):
+        flash(
+            'CSV header must contain: student_id, full_name, department, email '
+            '(optional: verification_pin).',
+            'danger',
+        )
+        return redirect(url_for('admin.users'))
+
+    send_emails = request.form.get('send_emails') == 'on' and is_email_configured()
+    existing_ids = {row[0] for row in db.session.query(InstitutionalIdentity.student_id).all()}
+    existing_emails = {row[0].lower() for row in db.session.query(InstitutionalIdentity.email).all()}
+
+    added_count = 0
+    skipped: list[str] = []
+    issued_pins: list[dict] = []
+    register_url = url_for('auth.register', _external=True)
+
+    for row_num, raw_row in enumerate(reader, start=2):
+        if row_num > 2001:
+            skipped.append('Row limit exceeded (max 2000 rows per upload).')
+            break
+
+        def _val(col: str) -> str:
+            key = norm_fields.get(col)
+            return (raw_row.get(key) or '').strip() if key else ''
+
+        student_id = _val('student_id').upper()
+        full_name = _val('full_name')
+        dept = _val('department')
+        email = _val('email').lower()
+        pin_in = _val('verification_pin')
+
+        if not (student_id and full_name and dept and email):
+            skipped.append(f'Row {row_num}: missing required fields')
+            continue
+        if not _STUDENT_ID_RE.match(student_id):
+            skipped.append(f'Row {row_num}: invalid student_id "{student_id}"')
+            continue
+        if not _EMAIL_RE.match(email):
+            skipped.append(f'Row {row_num}: invalid email "{email}"')
+            continue
+        if pin_in and len(pin_in) < 4:
+            skipped.append(f'Row {row_num}: verification_pin must be >= 4 chars')
+            continue
+        if student_id in existing_ids:
+            skipped.append(f'Row {row_num}: duplicate student_id "{student_id}"')
+            continue
+        if email in existing_emails:
+            skipped.append(f'Row {row_num}: duplicate email "{email}"')
+            continue
+
+        raw_pin = pin_in or f'PIN-{secrets.token_hex(3).upper()}'
+        db.session.add(InstitutionalIdentity(
+            student_id=student_id,
+            full_name=full_name,
+            department=dept,
+            email=email,
+            verification_pin_hash=hash_password(raw_pin),
+            is_claimed=False,
+        ))
+        existing_ids.add(student_id)
+        existing_emails.add(email)
+        added_count += 1
+
+        emailed = False
+        if send_emails:
+            emailed, _ = send_verification_pin_email(
+                to_address=email,
+                full_name=full_name,
+                student_id=student_id,
+                department=dept,
+                raw_pin=raw_pin,
+                register_url=register_url,
+            )
+
+        issued_pins.append({
+            'student_id': student_id,
+            'full_name': full_name,
+            'department': dept,
+            'email': email,
+            'pin': raw_pin,
+            'emailed': emailed,
+        })
+
+    if added_count > 0:
+        db.session.commit()
+        append_audit_event(
+            event_type='institutional_registry.csv_imported',
+            actor_category='admin',
+            actor_ref=current_user.username,
+            payload={
+                'added_count': added_count,
+                'skipped_count': len(skipped),
+                'emails_sent': sum(1 for item in issued_pins if item['emailed']),
+            },
+        )
+        flash(
+            f'Imported {added_count} student record(s) into the institutional registry.'
+            + (f' Skipped {len(skipped)} row(s).' if skipped else ''),
+            'success',
+        )
+    else:
+        flash(
+            'No new records imported.' + (f' Details: {"; ".join(skipped[:5])}' if skipped else ''),
+            'warning',
+        )
+    if skipped and added_count > 0:
+        flash(f'Skipped rows: {"; ".join(skipped[:5])}', 'warning')
+
+    return _render_users_page(issued_pins=issued_pins)
+
+
+@admin_bp.route('/registry/<int:identity_id>/reissue-pin', methods=['POST'])
+@login_required
+def reissue_identity_pin(identity_id: int):
+    """Regenerate a one-time Verification PIN for an unclaimed student identity."""
+    _require_admin()
+    ident = db.session.get(InstitutionalIdentity, identity_id)
+    if ident is None:
+        abort(404)
+    if ident.is_claimed:
+        flash(f'Student ID "{ident.student_id}" has already been claimed.', 'warning')
+        return redirect(url_for('admin.users'))
+
+    new_pin = f'PIN-{secrets.token_hex(3).upper()}'
+    ident.verification_pin_hash = hash_password(new_pin)
+    db.session.commit()
+
+    email_sent = False
+    if is_email_configured():
+        email_sent, _ = send_verification_pin_email(
+            to_address=ident.email,
+            full_name=ident.full_name,
+            student_id=ident.student_id,
+            department=ident.department,
+            raw_pin=new_pin,
+            register_url=url_for('auth.register', _external=True),
+        )
+
+    append_audit_event(
+        event_type='institutional_registry.pin_reissued',
+        actor_category='admin',
+        actor_ref=current_user.username,
+        payload={'student_id': ident.student_id, 'email_sent': email_sent},
+    )
+    if email_sent:
+        flash(f'New Verification PIN generated and emailed to {ident.email} ({ident.student_id}).', 'success')
+    else:
+        flash(
+            f'New One-Time Verification PIN for "{ident.student_id}" ({ident.full_name}): {new_pin}',
+            'success',
+        )
+    return redirect(url_for('admin.users'))
+
+
+@admin_bp.route('/users/<int:user_id>/reset-link', methods=['POST'])
+@login_required
+def issue_password_reset_link(user_id: int):
+    """Generate (and optionally email) a single-use 15-minute password reset link for a user."""
+    _require_admin()
+    user = db.session.get(User, user_id)
+    if user is None:
+        abort(404)
+    if user.id == current_user.id:
+        flash('Cannot issue a self-reset link here.', 'warning')
+        return redirect(url_for('admin.users'))
+
+    max_age = int(current_app.config.get('PASSWORD_RESET_MAX_AGE_SECONDS', 900))
+    token = generate_password_reset_token(
+        current_app.config['SECRET_KEY'], user.id, user.password_hash
+    )
+    reset_url = url_for('auth.reset_password', token=token, _external=True)
+
+    identity = None
+    if user.student_id:
+        identity = db.session.query(InstitutionalIdentity).filter_by(student_id=user.student_id).first()
+
+    email_sent = False
+    if identity and identity.email and is_email_configured():
+        email_sent, _ = send_password_reset_email(
+            to_address=identity.email,
+            display_name=user.display_name,
+            username=user.username,
+            reset_url=reset_url,
+            expires_minutes=max(1, max_age // 60),
+        )
+
+    append_audit_event(
+        event_type='admin.password_reset_issued',
+        actor_category='admin',
+        actor_ref=current_user.username,
+        payload={'target_username': user.username, 'email_sent': email_sent},
+    )
+
+    if email_sent:
+        flash(f'Single-use password reset link emailed to {identity.email} for @{user.username}.', 'success')
+        return redirect(url_for('admin.users'))
+
+    flash(
+        f'Generated single-use 15-minute reset link for @{user.username}. Copy and share securely below.',
+        'info',
+    )
+    return _render_users_page(
+        generated_reset={'username': user.username, 'url': reset_url}
+    )
 
 
 @admin_bp.route('/users/<int:user_id>/unlock', methods=['POST'])

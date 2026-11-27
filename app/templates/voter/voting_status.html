@@ -39,35 +39,43 @@
           </td>
           <td>
             {% if item.is_eligible %}
-              <span class="badge badge-success"><i class="bi bi-check-circle"></i> Eligible</span>
+            <span class="badge badge-success"><i class="bi bi-check-circle"></i> Eligible</span>
             {% else %}
-              <span class="badge badge-draft"><i class="bi bi-x-circle"></i> Ineligible</span>
+            <span class="badge badge-draft"><i class="bi bi-x-circle"></i> Ineligible</span>
             {% endif %}
           </td>
           <td>
-            {% if item.already_voted %}
-              <span class="badge badge-success"><i class="bi bi-check-all"></i> Ballot Cast</span>
+            {% if e.variant == 'C' and item.status_label == 'Token Issued' %}
+            <span class="badge badge-warning"><i class="bi bi-ticket-perforated"></i> Token Issued (Phase 1)</span>
+            {% elif item.already_voted %}
+            <span class="badge badge-success"><i class="bi bi-check-all"></i> Ballot Cast</span>
             {% elif item.can_vote %}
-              <span class="badge badge-open"><i class="bi bi-envelope"></i> Ready to Vote</span>
+            <span class="badge badge-open"><i class="bi bi-envelope"></i> Ready to Vote</span>
             {% else %}
-              <span class="badge badge-draft">{{ item.status_label }}</span>
+            <span class="badge badge-draft">{{ item.status_label }}</span>
             {% endif %}
           </td>
           <td style="text-align:right;">
             {% if item.can_vote %}
-              <a href="{{ url_for('voter.cast_vote', election_id=e.id) }}" class="btn btn-primary btn-sm">
-                Vote Now
-              </a>
+            <a href="{{ url_for('voter.cast_vote', election_id=e.id) }}" class="btn btn-primary btn-sm">
+              Vote Now
+            </a>
+            {% elif e.variant == 'C' and item.status_label == 'Token Issued' and e.status == 'open' %}
+            <a href="{{ url_for('voter.cast_vote', election_id=e.id) }}" class="btn btn-outline btn-sm">
+              <i class="bi bi-shield-lock"></i> Redeem Token
+            </a>
+            {% elif item.already_voted and e.variant != 'A' %}
+            <a href="{{ url_for('public.receipt_verifier') }}" class="btn btn-outline btn-sm">
+              <i class="bi bi-receipt"></i> Verify Receipt
+            </a>
             {% elif item.already_voted %}
-              <a href="{{ url_for('public.receipt_verifier') }}" class="btn btn-outline btn-sm">
-                <i class="bi bi-receipt"></i> Verify Receipt
-              </a>
+            <span style="font-size:0.8rem;color:var(--text-muted);">Encrypted (No Receipt)</span>
             {% elif e.status == 'published' %}
-              <a href="{{ url_for('public.election_results', election_id=e.id) }}" class="btn btn-ghost btn-sm">
-                View Results
-              </a>
+            <a href="{{ url_for('public.election_results', election_id=e.id) }}" class="btn btn-ghost btn-sm">
+              View Results
+            </a>
             {% else %}
-              <span style="font-size:0.8rem;color:var(--text-muted);">{{ item.status_label }}</span>
+            <span style="font-size:0.8rem;color:var(--text-muted);">{{ item.status_label }}</span>
             {% endif %}
           </td>
         </tr>
@@ -83,8 +91,10 @@
     <i class="bi bi-shield-lock"></i> Privacy Guardrail: Separation of Records
   </h4>
   <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;margin:0;">
-    This page reflects records in the <code>participations</code> table, which indicates that student <code>{{ current_user.username }}</code> has exercised their vote.
-    Crucially, <strong>your candidate choice is NOT stored here</strong>, and your participation record has <strong>no database foreign key to your encrypted ballot</strong>.
+    This page reflects records in the <code>participations</code> table, which indicates that student
+    <code>{{ current_user.username }}</code> has exercised their vote.
+    Crucially, <strong>your candidate choice is NOT stored here</strong>, and your participation record has <strong>no
+      database foreign key to your encrypted ballot</strong>.
   </p>
 </div>
 {% endblock %}

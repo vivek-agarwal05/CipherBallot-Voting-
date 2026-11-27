@@ -297,7 +297,6 @@ function initActiveNav() {
 // ===========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-  initSidebar();
   initConfirmForms();
   initAlerts();
   initFormValidation();

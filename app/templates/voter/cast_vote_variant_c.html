@@ -79,7 +79,7 @@
       Redeem any valid one-time token below. Your vote is sealed using <strong>Hybrid RSA-OAEP + AES-256-GCM</strong> with zero identity metadata.
     </p>
 
-    <form method="post" action="{{ url_for('voter.cast_vote', election_id=election.id) if current_user.is_authenticated else url_for('public.anonymous_cast', election_id=election.id) }}">
+    <form method="post" action="{{ url_for('public.anonymous_cast', election_id=election.id) if (request.endpoint == 'public.anonymous_cast' or not current_user.is_authenticated) else url_for('voter.cast_vote', election_id=election.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="cast_with_token">
 
@@ -122,9 +122,17 @@
 <script>
 function copyAnonToken() {
   const el = document.getElementById('issuedTokenText');
-  if (!el) return;
+  if (!el || !navigator.clipboard) return;
   navigator.clipboard.writeText(el.textContent.trim()).then(() => {
-    alert('Anonymous voting token copied!');
+    if (window.CipherBallot) {
+      window.CipherBallot.showToast('Anonymous voting token copied!', 'success', 2500);
+    } else {
+      alert('Anonymous voting token copied!');
+    }
+  }).catch(() => {
+    if (window.CipherBallot) {
+      window.CipherBallot.showToast('Could not copy automatically. Please select and copy the token.', 'warning');
+    }
   });
 }
 </script>

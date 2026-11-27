@@ -66,7 +66,11 @@ def _generate_rsa_keypair(keys_dir: Path, overwrite: bool = False) -> None:
     _ok(f'RSA-2048 keypair (Hybrid Encryption): {priv_path} & {pub_path}')
 
 
-def _generate_self_signed_tls_cert(certs_dir: Path, overwrite: bool = False) -> None:
+def _generate_self_signed_tls_cert(
+    certs_dir: Path,
+    overwrite: bool = False,
+    san_ips: list[str] | None = None,
+) -> None:
     """Generate a local self-signed X.509 certificate for HTTPS/TLS."""
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes
@@ -89,6 +93,16 @@ def _generate_self_signed_tls_cert(certs_dir: Path, overwrite: bool = False) -> 
         x509.NameAttribute(NameOID.ORGANIZATION_NAME, 'CipherBallot Course Prototype'),
         x509.NameAttribute(NameOID.COMMON_NAME, 'localhost'),
     ])
+    san_entries: list[x509.GeneralName] = [
+        x509.DNSName('localhost'),
+        x509.IPAddress(ipaddress.IPv4Address('127.0.0.1')),
+    ]
+    for raw_ip in (san_ips or []):
+        try:
+            san_entries.append(x509.IPAddress(ipaddress.ip_address(raw_ip.strip())))
+        except ValueError:
+            san_entries.append(x509.DNSName(raw_ip.strip()))
+
     now = datetime.now(timezone.utc)
     cert = (
         x509.CertificateBuilder()
@@ -99,10 +113,7 @@ def _generate_self_signed_tls_cert(certs_dir: Path, overwrite: bool = False) -> 
         .not_valid_before(now - timedelta(minutes=5))
         .not_valid_after(now + timedelta(days=365))
         .add_extension(
-            x509.SubjectAlternativeName([
-                x509.DNSName('localhost'),
-                x509.IPAddress(ipaddress.IPv4Address('127.0.0.1')),
-            ]),
+            x509.SubjectAlternativeName(san_entries),
             critical=False,
         )
         .sign(tls_key, hashes.SHA256())
@@ -115,12 +126,41 @@ def _generate_self_signed_tls_cert(certs_dir: Path, overwrite: bool = False) -> 
     _ok(f'X.509 TLS cert & key (HTTPS): {cert_path} & {key_path}')
 
 
-def main(force: bool = False, ensure_missing: bool = False) -> None:
+def _export_cloud_env(keys_dir: Path) -> None:
+    """Print single-line escaped PEMs and a fresh SECRET_KEY for cloud env var setup."""
+    required = {
+        'RSA_PRIVATE_KEY_PEM': keys_dir / 'rsa_private.pem',
+        'RSA_PUBLIC_KEY_PEM': keys_dir / 'rsa_public.pem',
+        'SIGNING_PRIVATE_KEY_PEM': keys_dir / 'signing_private.pem',
+        'SIGNING_PUBLIC_KEY_PEM': keys_dir / 'signing_public.pem',
+    }
+    missing = [str(p) for p in required.values() if not p.exists()]
+    if missing:
+        _abort(f"Missing key file(s): {', '.join(missing)}. Run: python scripts/init_keys.py --ensure-missing")
+
+    print('\n# Copy these Environment Variables into Render / Railway / Fly.io (DO NOT COMMIT):')
+    print(f'SECRET_KEY={secrets.token_hex(32)}')
+    for env_name, path in required.items():
+        escaped = path.read_text(encoding='utf-8').strip().replace('\n', '\\n')
+        print(f'{env_name}={escaped}')
+    print()
+
+
+def main(
+    force: bool = False,
+    ensure_missing: bool = False,
+    san_ips: list[str] | None = None,
+    export_env: bool = False,
+) -> None:
     os.chdir(PROJECT_ROOT)
 
     env_path = PROJECT_ROOT / '.env'
     keys_dir = PROJECT_ROOT / 'instance' / 'keys'
     certs_dir = PROJECT_ROOT / 'instance' / 'certs'
+
+    if export_env:
+        _export_cloud_env(keys_dir)
+        return
 
     if not force and not ensure_missing:
         if env_path.exists():
@@ -160,7 +200,7 @@ def main(force: bool = False, ensure_missing: bool = False) -> None:
         _info(f'[skip] Ed25519 keypair exists: {private_key_path}')
 
     # 3. Self-signed X.509 TLS certificate
-    _generate_self_signed_tls_cert(certs_dir, overwrite=force)
+    _generate_self_signed_tls_cert(certs_dir, overwrite=force, san_ips=san_ips)
 
     # 4. .env file
     if force or not env_path.exists():
@@ -194,5 +234,7 @@ if __name__ == '__main__':
     )
     parser.add_argument('--force', action='store_true', help='Overwrite existing .env and key/cert files.')
     parser.add_argument('--ensure-missing', action='store_true', help='Create only missing keys/certs without overwriting existing files.')
+    parser.add_argument('--san-ip', action='append', default=[], help='Extra LAN IP or hostname SAN to embed in self-signed TLS cert.')
+    parser.add_argument('--export-env', action='store_true', help='Print single-line PEM values for cloud host environment variables.')
     args = parser.parse_args()
-    main(force=args.force, ensure_missing=args.ensure_missing)
+    main(force=args.force, ensure_missing=args.ensure_missing, san_ips=args.san_ip, export_env=args.export_env)

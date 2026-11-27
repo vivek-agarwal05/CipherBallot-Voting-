@@ -33,7 +33,9 @@
       <div style="display:flex;justify-content:space-between;font-size:0.8rem;border-top:1px solid var(--border);padding-top:0.75rem;margin-top:auto;">
         <span><strong>Candidates:</strong> {{ e.candidates|length }}</span>
         <span><strong>Your Status:</strong> 
-          {% if item.already_voted %}
+          {% if e.variant == 'C' and item.status_label == 'Token Issued' %}
+            <span style="color:var(--warning);font-weight:600;">Token Issued</span>
+          {% elif item.already_voted %}
             <span style="color:var(--success);font-weight:600;">Voted</span>
           {% elif item.can_vote %}
             <span style="color:var(--primary);font-weight:600;">Eligible</span>
@@ -51,6 +53,10 @@
       {% if item.can_vote %}
         <a href="{{ url_for('voter.cast_vote', election_id=e.id) }}" class="btn btn-primary btn-sm">
           <i class="bi bi-pencil-square"></i> Cast Ballot
+        </a>
+      {% elif e.variant == 'C' and item.status_label == 'Token Issued' and e.status == 'open' %}
+        <a href="{{ url_for('voter.cast_vote', election_id=e.id) }}" class="btn btn-outline btn-sm">
+          <i class="bi bi-shield-lock"></i> Redeem Token
         </a>
       {% elif item.already_voted %}
         <a href="{{ url_for('voter.voting_status') }}" class="btn btn-outline btn-sm">

@@ -87,6 +87,14 @@
               Department <span style="color:var(--danger)">*</span>
             </label>
             {{ form.department(class="form-control" + (" is-invalid" if form.department.errors else ""), id="department") }}
+            <datalist id="department-suggestions">
+              <option value="CS Department">
+              <option value="Information Security">
+              <option value="Data Science">
+              <option value="ECE Department">
+              <option value="Mechanical Engineering">
+              <option value="Business Administration">
+            </datalist>
             {% for error in form.department.errors %}
               <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
             {% endfor %}
@@ -136,15 +144,16 @@
         </button>
       </form>
 
+      {% if show_demo_hints %}
       <!-- Pre-approved Demo IDs Accordion for Evaluators -->
       <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border);">
         <details style="font-size:0.825rem;" open>
           <summary style="font-weight:600;color:var(--primary);cursor:pointer;margin-bottom:0.5rem;">
             <i class="bi bi-info-circle-fill"></i> Pre-Approved Roster IDs for Testing (Evaluation Demo)
           </summary>
-          <div style="background:var(--bg-secondary);padding:0.75rem;border-radius:6px;font-size:0.78rem;line-height:1.6;">
+          <div style="background:var(--bg-secondary);padding:0.75rem;border-radius:6px;font-size:0.78rem;line-height:1.6;overflow-x:auto;">
             <div style="margin-bottom:0.35rem;color:var(--text-muted);">
-              Click any sample ID below or fill the matching details to test the live criteria check:
+              Click any sample row below or fill the matching details to test the live criteria check:
             </div>
             {% if samples %}
               <table style="width:100%;border-collapse:collapse;margin-top:0.25rem;font-family:monospace;font-size:0.76rem;">
@@ -158,13 +167,16 @@
                 </thead>
                 <tbody>
                   {% for s in samples %}
-                  <tr style="border-bottom:1px solid var(--border);">
+                  {% set demo_pin = ('PIN-' + s.student_id.split('-')[-1]) if s.student_id in ('STU-CS-2024-010', 'STU-SEC-2024-011', 'STU-CS-2024-012', 'STU-DS-2024-013') else '' %}
+                  <tr style="border-bottom:1px solid var(--border);cursor:pointer;"
+                      title="Click to autofill this sample identity"
+                      onclick="fillSampleStudent('{{ s.student_id }}', '{{ demo_pin }}', '{{ s.full_name|e }}', '{{ s.department|e }}', '{{ s.email|e }}')">
                     <td style="padding:0.25rem 0.4rem;"><code>{{ s.student_id }}</code></td>
                     <td style="padding:0.25rem 0.4rem;">{{ s.full_name }}</td>
                     <td style="padding:0.25rem 0.4rem;">{{ s.department }}</td>
                     <td style="padding:0.25rem 0.4rem;">
-                      {% if s.student_id in ('STU-CS-2024-010', 'STU-SEC-2024-011', 'STU-CS-2024-012', 'STU-DS-2024-013') %}
-                        <code>PIN-{{ s.student_id.split('-')[-1] }}</code>
+                      {% if demo_pin %}
+                        <code>{{ demo_pin }}</code>
                       {% else %}
                         <span style="color:var(--text-muted);">Issued by Admin</span>
                       {% endif %}
@@ -179,6 +191,18 @@
           </div>
         </details>
       </div>
+      <script>
+      function fillSampleStudent(id, pin, name, dept, email) {
+        document.getElementById('student_id').value = id;
+        if (pin) document.getElementById('verification_pin').value = pin;
+        document.getElementById('display_name').value = name;
+        document.getElementById('department').value = dept;
+        document.getElementById('email').value = email;
+        const uname = document.getElementById('username');
+        if (!uname.value) uname.value = name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      }
+      </script>
+      {% endif %}
 
       <div style="text-align:center;margin-top:1.25rem;font-size:0.85rem;color:var(--text-muted);">
         Already registered? <a href="{{ url_for('auth.login') }}" style="color:var(--primary);font-weight:600;text-decoration:none;">Sign in to your account</a>

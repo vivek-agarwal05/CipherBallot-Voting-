@@ -23,12 +23,22 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required, login_user, logout_user
+from sqlalchemy import func, or_
 
 from ..extensions import db, limiter
 from ..models import User, InstitutionalIdentity, Election, ElectionEligibility
 from ..security.audit import append_audit_event
-from ..security.passwords import needs_rehash, verify_password, hash_password
-from .forms import LoginForm, RegisterForm
+from ..security.email import is_email_configured, send_password_reset_email
+from ..security.passwords import (
+    generate_password_reset_token,
+    hash_password,
+    needs_rehash,
+    reset_token_matches_user,
+    validate_password_strength,
+    verify_password,
+    verify_password_reset_token,
+)
+from .forms import ForgotPasswordForm, LoginForm, RegisterForm, ResetPasswordForm
 
 logger = logging.getLogger(__name__)
 
@@ -61,13 +71,18 @@ def login():
     form = LoginForm()
 
     if form.validate_on_submit():
-        username = form.username.data.strip()
+        login_ident = form.username.data.strip()
         candidate_password = form.password.data
         now = datetime.now(timezone.utc)
         max_failures = current_app.config.get('MAX_FAILED_LOGINS', 5)
         lockout_minutes = current_app.config.get('LOCKOUT_MINUTES', 5)
 
-        user = db.session.query(User).filter_by(username=username).first()
+        user = db.session.query(User).filter(
+            or_(
+                func.lower(User.username) == login_ident.lower(),
+                func.upper(User.student_id) == login_ident.upper(),
+            )
+        ).first()
 
         # Check temporary account lockout before password verification
         if user and user.locked_until:
@@ -85,7 +100,7 @@ def login():
                 append_audit_event(
                     event_type='user.login.locked_out',
                     actor_category='user',
-                    actor_ref=username[:64],
+                    actor_ref=user.username,
                     payload={'ip': request.remote_addr, 'remaining_seconds': remaining_secs},
                 )
                 return render_template('auth/login.html', form=form)
@@ -134,7 +149,7 @@ def login():
             append_audit_event(
                 event_type='user.login.failure',
                 actor_category='user',
-                actor_ref=username[:64],
+                actor_ref=login_ident[:64],
                 payload={
                     'ip': request.remote_addr,
                     'reason': 'bad_credentials_or_inactive',
@@ -196,13 +211,15 @@ def register():
 
     form = RegisterForm()
 
-    # Provide unclaimed sample IDs for classroom evaluators
-    unclaimed_samples = (
-        db.session.query(InstitutionalIdentity)
-        .filter_by(is_claimed=False)
-        .limit(4)
-        .all()
-    )
+    # Only surface sample demo IDs when SHOW_DEMO_HINTS is enabled (disabled in production)
+    unclaimed_samples = []
+    if current_app.config.get('SHOW_DEMO_HINTS'):
+        unclaimed_samples = (
+            db.session.query(InstitutionalIdentity)
+            .filter_by(is_claimed=False)
+            .limit(4)
+            .all()
+        )
 
     if form.validate_on_submit():
         student_id = form.student_id.data.strip().upper()
@@ -216,17 +233,9 @@ def register():
         # -------------------------------------------------------------------
         # Criteria 1: Password Complexity Check
         # -------------------------------------------------------------------
-        has_upper = any(c.isupper() for c in raw_password)
-        has_lower = any(c.islower() for c in raw_password)
-        has_digit = any(c.isdigit() for c in raw_password)
-        has_special = any(c in r"!@#$%^&*()-_=+[]{}|;:,.<>?/~`" for c in raw_password)
-
-        if not (has_upper and has_lower and has_digit and has_special):
-            flash(
-                'Password criteria not met: Must contain at least one uppercase letter, '
-                'one lowercase letter, one numeric digit, and one special character (!@#$%^&*...).',
-                'danger',
-            )
+        pwd_ok, pwd_err = validate_password_strength(raw_password)
+        if not pwd_ok:
+            flash(pwd_err, 'danger')
             return render_template('auth/register.html', form=form, samples=unclaimed_samples)
 
         # -------------------------------------------------------------------
@@ -319,13 +328,21 @@ def register():
             )
             return render_template('auth/register.html', form=form, samples=unclaimed_samples)
 
-        # Soft name consistency check (case-insensitive substring or exact match)
+        # Soft name consistency check (case-insensitive without spaces)
         clean_input_name = full_name.lower().replace(' ', '')
         clean_record_name = identity.full_name.lower().replace(' ', '')
         if clean_input_name != clean_record_name:
             flash(
                 f'Criteria Mismatch: The legal name provided ("{full_name}") does not match '
                 f'the institutional record ("{identity.full_name}") for Student ID "{student_id}".',
+                'danger',
+            )
+            return render_template('auth/register.html', form=form, samples=unclaimed_samples)
+
+        if identity.email.lower() != email:
+            flash(
+                f'Criteria Mismatch: Institutional email does not match the official record '
+                f'for Student ID "{student_id}".',
                 'danger',
             )
             return render_template('auth/register.html', form=form, samples=unclaimed_samples)
@@ -351,8 +368,9 @@ def register():
         identity.claimed_at = datetime.now(timezone.utc)
         identity.claimed_by_user_id = new_user.id
 
-        # Auto-enroll in matching department elections
+        # Auto-enroll in active/upcoming matching department elections
         dept_elections = db.session.query(Election).filter(
+            Election.status.in_(['draft', 'open']),
             (Election.group_dept == identity.department) |
             (Election.group_dept.ilike(f'%{identity.department}%'))
         ).all()
@@ -419,6 +437,128 @@ def logout():
 
     flash('You have been signed out.', 'info')
     return redirect(url_for('auth.login'))
+
+
+# ---------------------------------------------------------------------------
+# Forgot Password & Single-Use Password Reset
+# ---------------------------------------------------------------------------
+
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['POST'])
+def forgot_password():
+    """Request a single-use signed password reset link via institutional email."""
+    if current_user.is_authenticated:
+        return _redirect_for_role(current_user)
+
+    form = ForgotPasswordForm()
+    email_enabled = is_email_configured()
+
+    if form.validate_on_submit():
+        ident = form.identifier.data.strip()
+        user = db.session.query(User).filter(
+            or_(
+                func.lower(User.username) == ident.lower(),
+                func.upper(User.student_id) == ident.upper(),
+            )
+        ).first()
+
+        identity = None
+        if user is None and '@' in ident:
+            identity = db.session.query(InstitutionalIdentity).filter(
+                func.lower(InstitutionalIdentity.email) == ident.lower(),
+                InstitutionalIdentity.is_claimed.is_(True),
+            ).first()
+            if identity and identity.claimed_by_user_id:
+                user = db.session.get(User, identity.claimed_by_user_id)
+        elif user and user.student_id:
+            identity = db.session.query(InstitutionalIdentity).filter_by(
+                student_id=user.student_id
+            ).first()
+
+        if user and user.is_active and identity and identity.email and email_enabled:
+            max_age = int(current_app.config.get('PASSWORD_RESET_MAX_AGE_SECONDS', 900))
+            token = generate_password_reset_token(
+                current_app.config['SECRET_KEY'], user.id, user.password_hash
+            )
+            reset_url = url_for('auth.reset_password', token=token, _external=True)
+            sent, _ = send_password_reset_email(
+                to_address=identity.email,
+                display_name=user.display_name,
+                username=user.username,
+                reset_url=reset_url,
+                expires_minutes=max(1, max_age // 60),
+            )
+            append_audit_event(
+                event_type='user.password_reset_requested',
+                actor_category='user',
+                actor_ref=user.username,
+                payload={'ip': request.remote_addr, 'email_sent': sent},
+            )
+        else:
+            append_audit_event(
+                event_type='user.password_reset_requested',
+                actor_category='guest',
+                actor_ref=ident[:64],
+                payload={'ip': request.remote_addr, 'email_sent': False},
+            )
+
+        flash(
+            'If an active voter account matches with a verified institutional email, '
+            'a password reset link has been sent.',
+            'info',
+        )
+        return redirect(url_for('auth.login'))
+
+    return render_template(
+        'auth/forgot_password.html',
+        form=form,
+        email_enabled=email_enabled,
+    )
+
+
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['POST'])
+def reset_password(token: str):
+    """Verify a signed single-use reset token and update the user's password."""
+    if current_user.is_authenticated:
+        return _redirect_for_role(current_user)
+
+    max_age = int(current_app.config.get('PASSWORD_RESET_MAX_AGE_SECONDS', 900))
+    token_data, err_msg = verify_password_reset_token(
+        current_app.config['SECRET_KEY'], token, max_age_seconds=max_age
+    )
+    if not token_data:
+        flash(err_msg or 'Invalid password reset link.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+
+    user = db.session.get(User, int(token_data['uid']))
+    if not user or not user.is_active or not reset_token_matches_user(token_data, user.password_hash):
+        flash('This password reset link is no longer valid or has already been used.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        new_password = form.password.data
+        pwd_ok, pwd_err = validate_password_strength(new_password)
+        if not pwd_ok:
+            flash(pwd_err, 'danger')
+            return render_template('auth/reset_password.html', form=form, token=token)
+
+        user.password_hash = hash_password(new_password)
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        db.session.commit()
+
+        append_audit_event(
+            event_type='user.password_reset_completed',
+            actor_category='admin' if user.is_admin else 'user',
+            actor_ref=user.username,
+            payload={'ip': request.remote_addr},
+        )
+        flash('Your password has been reset cleanly. Please sign in with your new password.', 'success')
+        return redirect(url_for('auth.login'))
+
+    return render_template('auth/reset_password.html', form=form, token=token)
 
 
 # ---------------------------------------------------------------------------

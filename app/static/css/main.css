@@ -24,6 +24,7 @@
   /* Surfaces */
   --bg:             #F8FAFC;   /* slate-50    */
   --bg-secondary:   #F1F5F9;   /* slate-100   */
+  --bg-surface:     #FFFFFF;
   --card:           #FFFFFF;
   --sidebar-bg:     #1E293B;   /* slate-800   */
   --sidebar-text:   #CBD5E1;   /* slate-300   */
@@ -58,8 +59,12 @@
    2. Dark Mode (data-theme="dark" on <html>)
    -------------------------------------------------------------------------- */
 [data-theme="dark"] {
+  --navy:           #F1F5F9;
+  --primary-light:  rgba(129, 140, 248, 0.2);
+  --primary-dark:   #C7D2FE;
   --bg:             #0F172A;
   --bg-secondary:   #1E293B;
+  --bg-surface:     #1E293B;
   --card:           #1E293B;
   --sidebar-bg:     #0F172A;
   --sidebar-text:   #94A3B8;
@@ -783,6 +788,8 @@ tbody tr:hover { background: var(--bg-secondary); }
 @media (max-width: 480px) {
   .stat-grid { grid-template-columns: 1fr; }
   .table-wrapper { font-size: .8rem; }
+  .topbar { padding: 0 .75rem; gap: .5rem; }
+  .topbar-actions .badge { display: none; }
 }
 
 /* --------------------------------------------------------------------------

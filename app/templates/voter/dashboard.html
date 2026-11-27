@@ -7,7 +7,8 @@
     Hello, {{ current_user.display_name }}
   </h1>
   <p style="color:var(--text-muted);font-size:0.925rem;">
-    Student Voter ID: <code style="color:var(--navy);">{{ current_user.username }}</code> • Profile: <strong>Variant {{ project_variant }} (AES-GCM + Receipts)</strong>
+    Student Voter ID: <code style="color:var(--navy);">{{ current_user.student_id or current_user.username }}</code> • Profile: <strong>Variant {{
+      project_variant }} (AES-GCM + Receipts)</strong>
   </p>
 </div>
 
@@ -16,12 +17,14 @@
   <div class="card" style="padding:1.25rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <div>
-        <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Eligible Elections</span>
+        <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Eligible
+          Elections</span>
         <div style="font-size:1.75rem;font-weight:700;color:var(--navy);margin-top:0.25rem;">
           {{ total_eligible }}
         </div>
       </div>
-      <div style="width:42px;height:42px;border-radius:8px;background:var(--primary-light);color:var(--primary-dark);display:flex;align-items:center;justify-content:center;font-size:1.25rem;">
+      <div
+        style="width:42px;height:42px;border-radius:8px;background:var(--primary-light);color:var(--primary-dark);display:flex;align-items:center;justify-content:center;font-size:1.25rem;">
         <i class="bi bi-person-check"></i>
       </div>
     </div>
@@ -30,12 +33,14 @@
   <div class="card" style="padding:1.25rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <div>
-        <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Ballots Cast</span>
+        <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Ballots
+          Cast</span>
         <div style="font-size:1.75rem;font-weight:700;color:var(--success);margin-top:0.25rem;">
           {{ total_voted }}
         </div>
       </div>
-      <div style="width:42px;height:42px;border-radius:8px;background:var(--success-light);color:var(--success);display:flex;align-items:center;justify-content:center;font-size:1.25rem;">
+      <div
+        style="width:42px;height:42px;border-radius:8px;background:var(--success-light);color:var(--success);display:flex;align-items:center;justify-content:center;font-size:1.25rem;">
         <i class="bi bi-check2-circle"></i>
       </div>
     </div>
@@ -44,12 +49,14 @@
   <div class="card" style="padding:1.25rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <div>
-        <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Action Required</span>
+        <span style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Action
+          Required</span>
         <div style="font-size:1.75rem;font-weight:700;color:var(--warning);margin-top:0.25rem;">
           {{ action_required }}
         </div>
       </div>
-      <div style="width:42px;height:42px;border-radius:8px;background:var(--warning-light);color:var(--warning);display:flex;align-items:center;justify-content:center;font-size:1.25rem;">
+      <div
+        style="width:42px;height:42px;border-radius:8px;background:var(--warning-light);color:var(--warning);display:flex;align-items:center;justify-content:center;font-size:1.25rem;">
         <i class="bi bi-envelope-exclamation"></i>
       </div>
     </div>
@@ -80,7 +87,8 @@
         {% set e = item.election %}
         <tr>
           <td>
-            <a href="{{ url_for('voter.election_detail', election_id=e.id) }}" style="font-weight:600;color:var(--primary-dark);text-decoration:none;">
+            <a href="{{ url_for('voter.election_detail', election_id=e.id) }}"
+              style="font-weight:600;color:var(--primary-dark);text-decoration:none;">
               {{ e.title }}
             </a>
             <div style="font-size:0.75rem;color:var(--text-muted);">
@@ -94,33 +102,40 @@
             </span>
           </td>
           <td>
-            {% if item.already_voted %}
-              <span class="badge badge-success"><i class="bi bi-check-all"></i> Already Voted</span>
+            {% if e.variant == 'C' and item.status_label == 'Token Issued' %}
+            <span class="badge badge-warning"><i class="bi bi-ticket-perforated"></i> Token Issued (Phase 1)</span>
+            {% elif item.already_voted %}
+            <span class="badge badge-success"><i class="bi bi-check-all"></i> Already Voted</span>
             {% elif item.can_vote %}
-              <span class="badge" style="background:var(--primary-light);color:var(--primary-dark);"><i class="bi bi-envelope"></i> Eligible to Vote</span>
+            <span class="badge" style="background:var(--primary-light);color:var(--primary-dark);"><i
+                class="bi bi-envelope"></i> Eligible to Vote</span>
             {% elif not item.is_eligible %}
-              <span class="badge badge-draft"><i class="bi bi-x-circle"></i> Not on Roster</span>
+            <span class="badge badge-draft"><i class="bi bi-x-circle"></i> Not on Roster</span>
             {% else %}
-              <span class="badge badge-draft">{{ item.status_label }}</span>
+            <span class="badge badge-draft">{{ item.status_label }}</span>
             {% endif %}
           </td>
           <td style="text-align:right;">
             {% if item.can_vote %}
-              <a href="{{ url_for('voter.cast_vote', election_id=e.id) }}" class="btn btn-primary btn-sm">
-                <i class="bi bi-pencil-square"></i> Cast Ballot
-              </a>
+            <a href="{{ url_for('voter.cast_vote', election_id=e.id) }}" class="btn btn-primary btn-sm">
+              <i class="bi bi-pencil-square"></i> Cast Ballot
+            </a>
+            {% elif e.variant == 'C' and item.status_label == 'Token Issued' and e.status == 'open' %}
+            <a href="{{ url_for('voter.cast_vote', election_id=e.id) }}" class="btn btn-outline btn-sm">
+              <i class="bi bi-shield-lock"></i> Redeem Token
+            </a>
             {% elif item.already_voted %}
-              <a href="{{ url_for('voter.voting_status') }}" class="btn btn-ghost btn-sm">
-                <i class="bi bi-receipt"></i> Status
-              </a>
+            <a href="{{ url_for('voter.voting_status') }}" class="btn btn-ghost btn-sm">
+              <i class="bi bi-receipt"></i> Status
+            </a>
             {% elif e.status == 'published' %}
-              <a href="{{ url_for('public.election_results', election_id=e.id) }}" class="btn btn-ghost btn-sm">
-                <i class="bi bi-bar-chart"></i> Results
-              </a>
+            <a href="{{ url_for('public.election_results', election_id=e.id) }}" class="btn btn-ghost btn-sm">
+              <i class="bi bi-bar-chart"></i> Results
+            </a>
             {% else %}
-              <a href="{{ url_for('voter.election_detail', election_id=e.id) }}" class="btn btn-ghost btn-sm">
-                View Details
-              </a>
+            <a href="{{ url_for('voter.election_detail', election_id=e.id) }}" class="btn btn-ghost btn-sm">
+              View Details
+            </a>
             {% endif %}
           </td>
         </tr>
@@ -155,7 +170,8 @@
       <i class="bi bi-receipt"></i> Verify a Ballot Receipt
     </h4>
     <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">
-      Already voted? Use your 43-character receipt code to verify your encrypted ballot's digest on the public bulletin board.
+      Already voted? Use your 43-character receipt code to verify your encrypted ballot's digest on the public bulletin
+      board.
     </p>
     <a href="{{ url_for('public.receipt_verifier') }}" class="btn btn-outline btn-sm">
       Check Receipt Code &rarr;

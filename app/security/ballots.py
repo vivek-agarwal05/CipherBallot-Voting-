@@ -30,33 +30,36 @@ from flask import current_app
 from .canonical import canonical_json
 
 
-def _load_rsa_public_key() -> RSAPublicKey:
-    """Load the RSA-2048 public key for hybrid AES key wrapping."""
-    path_str: str = current_app.config.get('RSA_PUBLIC_KEY_PATH', '')
+def _load_pem_bytes(pem_env_key: str, path_key: str, label: str) -> bytes:
+    """Load PEM key bytes from config env string first, then fallback to file path."""
+    pem_inline: str | None = current_app.config.get(pem_env_key)
+    if pem_inline:
+        return pem_inline.replace('\\n', '\n').encode('utf-8')
+    path_str: str = current_app.config.get(path_key, '')
     path = Path(path_str)
     if not path.exists():
         raise RuntimeError(
-            f"RSA public key not found at '{path}'. "
+            f"{label} not found at '{path}' (and {pem_env_key} is not set). "
             "Run: python scripts/init_keys.py --ensure-missing"
         )
-    key = load_pem_public_key(path.read_bytes())
+    return path.read_bytes()
+
+
+def _load_rsa_public_key() -> RSAPublicKey:
+    """Load the RSA-2048 public key for hybrid AES key wrapping."""
+    pem_bytes = _load_pem_bytes('RSA_PUBLIC_KEY_PEM', 'RSA_PUBLIC_KEY_PATH', 'RSA public key')
+    key = load_pem_public_key(pem_bytes)
     if not isinstance(key, RSAPublicKey):
-        raise RuntimeError(f"Key at '{path}' is not an RSA public key.")
+        raise RuntimeError("Configured RSA public key is not an RSAPublicKey.")
     return key
 
 
 def _load_rsa_private_key() -> RSAPrivateKey:
     """Load the RSA-2048 private key for unwrapping per-ballot AES keys during tally."""
-    path_str: str = current_app.config.get('RSA_PRIVATE_KEY_PATH', '')
-    path = Path(path_str)
-    if not path.exists():
-        raise RuntimeError(
-            f"RSA private key not found at '{path}'. "
-            "Run: python scripts/init_keys.py --ensure-missing"
-        )
-    key = load_pem_private_key(path.read_bytes(), password=None)
+    pem_bytes = _load_pem_bytes('RSA_PRIVATE_KEY_PEM', 'RSA_PRIVATE_KEY_PATH', 'RSA private key')
+    key = load_pem_private_key(pem_bytes, password=None)
     if not isinstance(key, RSAPrivateKey):
-        raise RuntimeError(f"Key at '{path}' is not an RSA private key.")
+        raise RuntimeError("Configured RSA private key is not an RSAPrivateKey.")
     return key
 
 
