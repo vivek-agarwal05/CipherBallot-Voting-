@@ -237,3 +237,65 @@ def test_production_config_env_pems_demo_toggle_and_bootstrap(tmp_path, monkeypa
         # Admin was bootstrapped from env during create_app() -> bootstrap_runtime()
         admin = _db.session.query(User).filter_by(username='rootadmin').first()
         assert admin is not None and admin.is_admin
+
+
+def test_account_settings_change_username_and_password(client, db, admin_user, voter_user):
+    """Authenticated user (admin or voter) can update username and password with verification."""
+    # Unauthenticated access redirects to login
+    r_anon = client.get('/auth/account')
+    assert r_anon.status_code == 302
+
+    # Sign in as admin
+    client.post('/auth/login', data={'username': 'testadmin', 'password': 'AdminPass123!'}, follow_redirects=True)
+    r_page = client.get('/auth/account')
+    assert r_page.status_code == 200
+    assert b'Change Username' in r_page.data
+
+    # Wrong current password rejected for username update
+    r_bad_pw = client.post('/auth/account/username', data={
+        'username': 'newadmin',
+        'display_name': 'Chief Admin',
+        'current_password': 'WrongPassword!1',
+    }, follow_redirects=True)
+    assert b'Current password is incorrect' in r_bad_pw.data
+
+    # Duplicate username rejected
+    r_dup = client.post('/auth/account/username', data={
+        'username': 'testvoter',
+        'display_name': 'Chief Admin',
+        'current_password': 'AdminPass123!',
+    }, follow_redirects=True)
+    assert b'already in use' in r_dup.data
+
+    # Valid username + display name update succeeds
+    r_upd = client.post('/auth/account/username', data={
+        'username': 'Chief_Admin',
+        'display_name': 'Chief Admin',
+        'current_password': 'AdminPass123!',
+    }, follow_redirects=True)
+    assert r_upd.status_code == 200
+    assert b'Signed in as @chief_admin' in r_upd.data
+
+    # Weak password rejected
+    r_weak = client.post('/auth/account/password', data={
+        'current_password': 'AdminPass123!',
+        'new_password': 'weak',
+        'confirm_password': 'weak',
+    }, follow_redirects=True)
+    assert b'at least 8 characters' in r_weak.data
+
+    # Valid password update succeeds and works on re-login
+    r_pw = client.post('/auth/account/password', data={
+        'current_password': 'AdminPass123!',
+        'new_password': 'NewAdmin@2026!',
+        'confirm_password': 'NewAdmin@2026!',
+    }, follow_redirects=True)
+    assert b'password has been updated cleanly' in r_pw.data
+
+    client.post('/auth/logout', follow_redirects=True)
+    assert b'Invalid username or password' in client.post(
+        '/auth/login', data={'username': 'chief_admin', 'password': 'AdminPass123!'}, follow_redirects=True
+    ).data
+    assert b'Election Administration Hub' in client.post(
+        '/auth/login', data={'username': 'chief_admin', 'password': 'NewAdmin@2026!'}, follow_redirects=True
+    ).data

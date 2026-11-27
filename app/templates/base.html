@@ -221,10 +221,13 @@
           Variants {{ project_variant }} (RSA+AES-GCM • Ed25519)
         </a>
         {% if current_user.is_authenticated %}
-          <span style="font-size:.85rem;color:var(--text-muted);display:flex;align-items:center;gap:0.4rem;">
+          <a href="{{ url_for('auth.account_settings') }}"
+             style="font-size:.85rem;color:var(--text-muted);display:flex;align-items:center;gap:0.4rem;text-decoration:none;"
+             title="Account Settings — Change Username or Password">
             <i class="bi bi-person-circle"></i> {{ current_user.display_name }}
             <span class="badge badge-primary" style="margin-left:.2rem;text-transform:uppercase;">{{ current_user.role }}</span>
-          </span>
+            <i class="bi bi-gear" style="font-size:0.8rem;opacity:0.75;"></i>
+          </a>
         {% else %}
           <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-primary">Sign In</a>
         {% endif %}

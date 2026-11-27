@@ -38,7 +38,14 @@ from ..security.passwords import (
     verify_password,
     verify_password_reset_token,
 )
-from .forms import ForgotPasswordForm, LoginForm, RegisterForm, ResetPasswordForm
+from .forms import (
+    AccountUsernameForm,
+    ChangePasswordForm,
+    ForgotPasswordForm,
+    LoginForm,
+    RegisterForm,
+    ResetPasswordForm,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -559,6 +566,133 @@ def reset_password(token: str):
         return redirect(url_for('auth.login'))
 
     return render_template('auth/reset_password.html', form=form, token=token)
+
+
+# ---------------------------------------------------------------------------
+# Authenticated Account Settings (Change Username / Display Name / Password)
+# ---------------------------------------------------------------------------
+
+def _render_account_settings(
+    username_form: AccountUsernameForm | None = None,
+    password_form: ChangePasswordForm | None = None,
+):
+    if username_form is None:
+        username_form = AccountUsernameForm(
+            username=current_user.username,
+            display_name=current_user.display_name,
+        )
+    if password_form is None:
+        password_form = ChangePasswordForm()
+    return render_template(
+        'auth/account.html',
+        username_form=username_form,
+        password_form=password_form,
+    )
+
+
+@auth_bp.route('/account', methods=['GET'])
+@login_required
+def account_settings():
+    """Display account security settings for the signed-in user."""
+    return _render_account_settings()
+
+
+@auth_bp.route('/account/username', methods=['POST'])
+@login_required
+@limiter.limit('10 per minute', methods=['POST'])
+def update_account_username():
+    """Update current user's username and display name after verifying current password."""
+    form = AccountUsernameForm()
+    if not form.validate_on_submit():
+        return _render_account_settings(username_form=form)
+
+    if not verify_password(current_user.password_hash, form.current_password.data):
+        flash('Current password is incorrect.', 'danger')
+        append_audit_event(
+            event_type='user.profile_update_failed',
+            actor_category='admin' if current_user.is_admin else 'user',
+            actor_ref=current_user.username,
+            payload={'ip': request.remote_addr, 'reason': 'invalid_current_password'},
+        )
+        return _render_account_settings(username_form=form)
+
+    new_username = form.username.data.strip().lower()
+    new_display_name = form.display_name.data.strip()
+    old_username = current_user.username
+    old_display_name = current_user.display_name
+
+    if new_username == old_username and new_display_name == old_display_name:
+        flash('No changes detected for username or display name.', 'info')
+        return redirect(url_for('auth.account_settings'))
+
+    if new_username != old_username:
+        clash = (
+            db.session.query(User)
+            .filter(func.lower(User.username) == new_username, User.id != current_user.id)
+            .first()
+        )
+        if clash:
+            flash(f'Username "{new_username}" is already in use. Please choose another.', 'danger')
+            return _render_account_settings(username_form=form)
+
+    current_user.username = new_username
+    current_user.display_name = new_display_name
+    db.session.commit()
+
+    append_audit_event(
+        event_type='user.profile_updated',
+        actor_category='admin' if current_user.is_admin else 'user',
+        actor_ref=new_username,
+        payload={
+            'old_username': old_username,
+            'new_username': new_username,
+            'ip': request.remote_addr,
+        },
+    )
+    flash(f'Account updated cleanly! Signed in as @{new_username}.', 'success')
+    return redirect(url_for('auth.account_settings'))
+
+
+@auth_bp.route('/account/password', methods=['POST'])
+@login_required
+@limiter.limit('10 per minute', methods=['POST'])
+def change_account_password():
+    """Change current user's password after current password verification and strength checks."""
+    form = ChangePasswordForm()
+    if not form.validate_on_submit():
+        return _render_account_settings(password_form=form)
+
+    if not verify_password(current_user.password_hash, form.current_password.data):
+        flash('Current password is incorrect.', 'danger')
+        append_audit_event(
+            event_type='user.password_change_failed',
+            actor_category='admin' if current_user.is_admin else 'user',
+            actor_ref=current_user.username,
+            payload={'ip': request.remote_addr, 'reason': 'invalid_current_password'},
+        )
+        return _render_account_settings(password_form=form)
+
+    new_password = form.new_password.data
+    pwd_ok, pwd_err = validate_password_strength(new_password)
+    if not pwd_ok:
+        flash(pwd_err, 'danger')
+        return _render_account_settings(password_form=form)
+
+    if verify_password(current_user.password_hash, new_password):
+        flash('New password must be different from your current password.', 'warning')
+        return _render_account_settings(password_form=form)
+
+    current_user.password_hash = hash_password(new_password)
+    db.session.commit()
+
+    append_audit_event(
+        event_type='user.password_changed',
+        actor_category='admin' if current_user.is_admin else 'user',
+        actor_ref=current_user.username,
+        payload={'ip': request.remote_addr},
+    )
+    flash('Your password has been updated cleanly.', 'success')
+    return redirect(url_for('auth.account_settings'))
 
 
 # ---------------------------------------------------------------------------

@@ -161,7 +161,9 @@
                 </form>
               </div>
             {% else %}
-              <small style="color:var(--text-muted)">Current User</small>
+              <a href="{{ url_for('auth.account_settings') }}" class="btn btn-outline btn-sm" title="Change your username or password">
+                <i class="bi bi-gear"></i> Account Settings
+              </a>
             {% endif %}
           </td>
         </tr>

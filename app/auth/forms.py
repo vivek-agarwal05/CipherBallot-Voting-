@@ -201,3 +201,63 @@ class ResetPasswordForm(FlaskForm):
         render_kw={'autocomplete': 'new-password', 'placeholder': '••••••••'},
     )
     submit = SubmitField('Reset Password')
+
+
+class AccountUsernameForm(FlaskForm):
+    """Update the authenticated user's username and display name after password confirmation."""
+    username = StringField(
+        'Username',
+        validators=[
+            DataRequired(message='Username is required.'),
+            Length(min=3, max=64, message='Username must be 3–64 characters.'),
+            Regexp(
+                r'^[a-zA-Z0-9_.\-]+$',
+                message='Username may only contain letters, digits, _, ., -',
+            ),
+        ],
+        render_kw={'autocomplete': 'username', 'placeholder': 'your_username'},
+    )
+    display_name = StringField(
+        'Display Name',
+        validators=[
+            DataRequired(message='Display name is required.'),
+            Length(min=2, max=128, message='Display name must be 2–128 characters.'),
+        ],
+        render_kw={'placeholder': 'Full or display name'},
+    )
+    current_password = PasswordField(
+        'Current Password (Required to Confirm)',
+        validators=[
+            DataRequired(message='Current password is required to update account details.'),
+        ],
+        render_kw={'autocomplete': 'current-password', 'placeholder': '••••••••'},
+    )
+    submit = SubmitField('Save Username & Name')
+
+
+class ChangePasswordForm(FlaskForm):
+    """Change the authenticated user's password after current password verification."""
+    current_password = PasswordField(
+        'Current Password',
+        validators=[
+            DataRequired(message='Current password is required.'),
+        ],
+        render_kw={'autocomplete': 'current-password', 'placeholder': '••••••••'},
+    )
+    new_password = PasswordField(
+        'New Password',
+        validators=[
+            DataRequired(message='New password is required.'),
+            Length(min=8, max=256, message='New password must be at least 8 characters.'),
+        ],
+        render_kw={'autocomplete': 'new-password', 'placeholder': '••••••••'},
+    )
+    confirm_password = PasswordField(
+        'Confirm New Password',
+        validators=[
+            DataRequired(message='Please confirm your new password.'),
+            EqualTo('new_password', message='New passwords must match.'),
+        ],
+        render_kw={'autocomplete': 'new-password', 'placeholder': '••••••••'},
+    )
+    submit = SubmitField('Update Password')

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Account Settings — CipherBallot{% endblock %}
+{% block topbar_title %}Account Settings{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <div style="display:inline-block;padding:0.25rem 0.65rem;background:var(--primary-light);color:var(--primary-dark);border-radius:9999px;font-size:0.75rem;font-weight:700;margin-bottom:0.5rem;">
+    ACCOUNT SECURITY &amp; CREDENTIALS
+  </div>
+  <h1 style="font-size:1.6rem;font-weight:700;color:var(--navy);margin:0 0 0.35rem 0;">
+    Account Settings
+  </h1>
+  <p style="color:var(--text-muted);font-size:0.9rem;margin:0;">
+    Signed in as <code>@{{ current_user.username }}</code> ({{ current_user.role|capitalize }}). Both actions require your current password.
+  </p>
+</div>
+
+{% if current_user.is_admin %}
+<div class="alert alert-info" style="margin-bottom:1.5rem;">
+  <i class="bi bi-info-circle-fill"></i>
+  <span>
+    If deployed with <code>ADMIN_USERNAME</code> in Render environment variables and you change your username here,
+    also update <code>ADMIN_USERNAME</code> on Render so future restarts do not recreate the old bootstrap username.
+  </span>
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:1.5rem;align-items:start;">
+  <!-- Card 1: Username & Display Name -->
+  <div class="card" style="box-shadow:var(--shadow-sm);border-top:4px solid var(--primary);">
+    <div class="card-header" style="padding:1.25rem 1.5rem;">
+      <h2 style="font-size:1.1rem;font-weight:700;margin:0 0 0.2rem 0;color:var(--navy);">
+        <i class="bi bi-person-badge"></i> Change Username &amp; Display Name
+      </h2>
+      <p style="font-size:0.82rem;color:var(--text-muted);margin:0;">
+        Update the login username and display label for this account.
+      </p>
+    </div>
+    <div class="card-body" style="padding:1.5rem;">
+      <form method="post" action="{{ url_for('auth.update_account_username') }}" novalidate>
+        {{ username_form.hidden_tag() }}
+
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="username" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
+            Username <span style="color:var(--danger)">*</span>
+          </label>
+          {{ username_form.username(class="form-control" + (" is-invalid" if username_form.username.errors else ""), id="username") }}
+          <small style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:0.2rem;">
+            3–64 characters: letters, numbers, <code>_</code>, <code>.</code>, <code>-</code> (stored lowercase)
+          </small>
+          {% for error in username_form.username.errors %}
+            <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="display_name" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
+            Display Name <span style="color:var(--danger)">*</span>
+          </label>
+          {{ username_form.display_name(class="form-control" + (" is-invalid" if username_form.display_name.errors else ""), id="display_name") }}
+          {% for error in username_form.display_name.errors %}
+            <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="form-group" style="margin-bottom:1.25rem;">
+          <label for="username_current_password" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
+            Current Password <span style="color:var(--danger)">*</span>
+          </label>
+          {{ username_form.current_password(class="form-control" + (" is-invalid" if username_form.current_password.errors else ""), id="username_current_password") }}
+          {% for error in username_form.current_password.errors %}
+            <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:0.6rem;font-weight:600;">
+          <i class="bi bi-check2-circle"></i> Save Username &amp; Name
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Card 2: Change Password -->
+  <div class="card" style="box-shadow:var(--shadow-sm);border-top:4px solid var(--success);">
+    <div class="card-header" style="padding:1.25rem 1.5rem;">
+      <h2 style="font-size:1.1rem;font-weight:700;margin:0 0 0.2rem 0;color:var(--navy);">
+        <i class="bi bi-shield-lock-fill"></i> Change Password
+      </h2>
+      <p style="font-size:0.82rem;color:var(--text-muted);margin:0;">
+        Re-hashed immediately using Argon2id memory-hard password hashing.
+      </p>
+    </div>
+    <div class="card-body" style="padding:1.5rem;">
+      <form method="post" action="{{ url_for('auth.change_account_password') }}" novalidate>
+        {{ password_form.hidden_tag() }}
+
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="current_password" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
+            Current Password <span style="color:var(--danger)">*</span>
+          </label>
+          {{ password_form.current_password(class="form-control" + (" is-invalid" if password_form.current_password.errors else ""), id="current_password") }}
+          {% for error in password_form.current_password.errors %}
+            <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="new_password" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
+            New Password <span style="color:var(--danger)">*</span>
+          </label>
+          {{ password_form.new_password(class="form-control" + (" is-invalid" if password_form.new_password.errors else ""), id="new_password") }}
+          <small style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:0.2rem;">
+            &ge;8 chars, uppercase, lowercase, digit &amp; special symbol
+          </small>
+          {% for error in password_form.new_password.errors %}
+            <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="form-group" style="margin-bottom:1.25rem;">
+          <label for="confirm_password" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
+            Confirm New Password <span style="color:var(--danger)">*</span>
+          </label>
+          {{ password_form.confirm_password(class="form-control" + (" is-invalid" if password_form.confirm_password.errors else ""), id="confirm_password") }}
+          {% for error in password_form.confirm_password.errors %}
+            <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:0.6rem;font-weight:600;">
+          <i class="bi bi-key-fill"></i> Update Password
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
