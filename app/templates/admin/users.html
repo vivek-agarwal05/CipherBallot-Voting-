@@ -34,7 +34,7 @@
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem;">
     <div>
       <h3 style="font-size:1rem;font-weight:700;margin:0;color:var(--navy);">
-        <i class="bi bi-key-fill"></i> Newly Imported Verification PINs (Shown Once)
+        <i class="bi bi-key-fill"></i> Issued / Newly Imported Verification PINs (Shown Once)
       </h3>
       <p style="font-size:0.8rem;color:var(--text-muted);margin:0.2rem 0 0 0;">
         Only Argon2id hashes are saved in the database. Export or distribute these PINs now for students not emailed via SMTP.
@@ -63,7 +63,14 @@
           <td>{{ item.full_name }}</td>
           <td>{{ item.department }}</td>
           <td>{{ item.email }}</td>
-          <td><code>{{ item.pin }}</code></td>
+          <td>
+            <div style="display:inline-flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+              <code>{{ item.pin }}</code>
+              <button type="button" class="btn btn-outline btn-sm" data-copy="{{ item.pin }}" title="Copy Verification PIN">
+                <i class="bi bi-clipboard"></i> Copy
+              </button>
+            </div>
+          </td>
           <td>
             {% if item.emailed %}
               <span class="badge badge-success">Emailed</span>

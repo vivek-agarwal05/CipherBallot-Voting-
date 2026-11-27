@@ -1022,7 +1022,16 @@ def add_institutional_identity():
             f'One-Time Verification PIN (share privately with student): {raw_pin}',
             'success',
         )
-    return redirect(url_for('admin.users'))
+    return _render_users_page(
+        issued_pins=[{
+            'student_id': student_id,
+            'full_name': full_name,
+            'department': dept,
+            'email': email,
+            'pin': raw_pin,
+            'emailed': email_sent,
+        }]
+    )
 
 
 @admin_bp.route('/registry/import-csv', methods=['POST'])
@@ -1200,7 +1209,16 @@ def reissue_identity_pin(identity_id: int):
             f'New One-Time Verification PIN for "{ident.student_id}" ({ident.full_name}): {new_pin}',
             'success',
         )
-    return redirect(url_for('admin.users'))
+    return _render_users_page(
+        issued_pins=[{
+            'student_id': ident.student_id,
+            'full_name': ident.full_name,
+            'department': ident.department,
+            'email': ident.email,
+            'pin': new_pin,
+            'emailed': email_sent,
+        }]
+    )
 
 
 @admin_bp.route('/users/<int:user_id>/reset-link', methods=['POST'])

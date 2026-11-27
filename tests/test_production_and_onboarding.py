@@ -84,12 +84,14 @@ def test_csv_bulk_import_and_reissue_pin(client, db, admin_user):
     ident = db.session.query(InstitutionalIdentity).filter_by(student_id='STU-BIO-2026-01').first()
     assert ident is not None
 
-    # Re-issue PIN invalidates old PIN and sets a fresh one
+    # Re-issue PIN invalidates old PIN and sets a fresh one shown in persistent PINs card
     reissue_resp = client.post(f'/admin/registry/{ident.id}/reissue-pin', follow_redirects=True)
     assert reissue_resp.status_code == 200
+    assert b'issuedPinsTable' in reissue_resp.data
     m = re.search(r'New One-Time Verification PIN[^:]*:\s*(PIN-[A-F0-9]+)', reissue_resp.data.decode())
     assert m is not None
     new_pin = m.group(1)
+    assert new_pin.encode() in reissue_resp.data
     refreshed = db.session.get(InstitutionalIdentity, ident.id)
     assert verify_password(refreshed.verification_pin_hash, new_pin) is True
 
