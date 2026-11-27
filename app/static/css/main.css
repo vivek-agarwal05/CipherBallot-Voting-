@@ -688,6 +688,10 @@ tbody tr:hover { background: var(--bg-secondary); }
   outline: 3px solid var(--border-focus);
 }
 
+.sidebar-backdrop {
+  display: none;
+}
+
 /* --------------------------------------------------------------------------
    13. Receipt / Print styles
    -------------------------------------------------------------------------- */
@@ -766,6 +770,10 @@ tbody tr:hover { background: var(--bg-secondary); }
   }
   .sidebar-toggle {
     display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
   }
   .main-content {
     margin-left: 0;
@@ -776,12 +784,12 @@ tbody tr:hover { background: var(--bg-secondary); }
   .stat-grid {
     grid-template-columns: 1fr 1fr;
   }
-  .sidebar-backdrop {
+  .sidebar-backdrop.show {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,.4);
-    z-index: 90;
+    background: rgba(0,0,0,.45);
+    z-index: 900;
   }
 }
 
