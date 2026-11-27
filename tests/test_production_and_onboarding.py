@@ -299,3 +299,22 @@ def test_account_settings_change_username_and_password(client, db, admin_user, v
     assert b'Election Administration Hub' in client.post(
         '/auth/login', data={'username': 'chief_admin', 'password': 'NewAdmin@2026!'}, follow_redirects=True
     ).data
+
+
+def test_password_visibility_toggle_present_on_auth_forms(client, db, admin_user):
+    """Sign-in, sign-up, and account settings render accessible password visibility toggle buttons."""
+    r_login = client.get('/auth/login')
+    assert r_login.status_code == 200
+    assert b'data-password-toggle="password"' in r_login.data
+    assert b'aria-pressed="false"' in r_login.data
+
+    r_reg = client.get('/auth/register')
+    assert r_reg.status_code == 200
+    assert b'data-password-toggle="password"' in r_reg.data
+    assert b'data-password-toggle="confirm_password"' in r_reg.data
+
+    client.post('/auth/login', data={'username': 'testadmin', 'password': 'AdminPass123!'}, follow_redirects=True)
+    r_acct = client.get('/auth/account')
+    assert r_acct.status_code == 200
+    assert b'data-password-toggle="current_password"' in r_acct.data
+    assert b'data-password-toggle="new_password"' in r_acct.data

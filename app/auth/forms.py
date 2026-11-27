@@ -26,6 +26,9 @@ class LoginForm(FlaskForm):
         render_kw={
             'autocomplete': 'username',
             'placeholder': 'your_username or STU-...',
+            'spellcheck': 'false',
+            'autocorrect': 'off',
+            'autocapitalize': 'none',
             'autofocus': True,
         },
     )
@@ -98,6 +101,9 @@ class RegisterForm(FlaskForm):
         render_kw={
             'autocomplete': 'username',
             'placeholder': 'e.g. f_miller',
+            'spellcheck': 'false',
+            'autocorrect': 'off',
+            'autocapitalize': 'none',
         },
     )
 
@@ -135,6 +141,9 @@ class RegisterForm(FlaskForm):
             ),
         ],
         render_kw={
+            'type': 'email',
+            'autocomplete': 'email',
+            'spellcheck': 'false',
             'placeholder': 'e.g. frank.miller@univ.edu',
         },
     )
@@ -215,7 +224,13 @@ class AccountUsernameForm(FlaskForm):
                 message='Username may only contain letters, digits, _, ., -',
             ),
         ],
-        render_kw={'autocomplete': 'username', 'placeholder': 'your_username'},
+        render_kw={
+            'autocomplete': 'username',
+            'placeholder': 'your_username',
+            'spellcheck': 'false',
+            'autocorrect': 'off',
+            'autocapitalize': 'none',
+        },
     )
     display_name = StringField(
         'Display Name',

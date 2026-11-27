@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "auth/_macros.html" import password_input %}
 {% block title %}Account Settings — CipherBallot{% endblock %}
 {% block topbar_title %}Account Settings{% endblock %}
 {% block content %}
@@ -66,7 +67,7 @@
           <label for="username_current_password" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
             Current Password <span style="color:var(--danger)">*</span>
           </label>
-          {{ username_form.current_password(class="form-control" + (" is-invalid" if username_form.current_password.errors else ""), id="username_current_password") }}
+          {{ password_input(username_form.current_password, "username_current_password") }}
           {% for error in username_form.current_password.errors %}
             <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
           {% endfor %}
@@ -97,7 +98,7 @@
           <label for="current_password" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
             Current Password <span style="color:var(--danger)">*</span>
           </label>
-          {{ password_form.current_password(class="form-control" + (" is-invalid" if password_form.current_password.errors else ""), id="current_password") }}
+          {{ password_input(password_form.current_password, "current_password") }}
           {% for error in password_form.current_password.errors %}
             <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
           {% endfor %}
@@ -107,8 +108,8 @@
           <label for="new_password" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
             New Password <span style="color:var(--danger)">*</span>
           </label>
-          {{ password_form.new_password(class="form-control" + (" is-invalid" if password_form.new_password.errors else ""), id="new_password") }}
-          <small style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:0.2rem;">
+          {{ password_input(password_form.new_password, "new_password", describedby="account-password-constraints") }}
+          <small id="account-password-constraints" style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:0.2rem;">
             &ge;8 chars, uppercase, lowercase, digit &amp; special symbol
           </small>
           {% for error in password_form.new_password.errors %}
@@ -120,7 +121,7 @@
           <label for="confirm_password" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
             Confirm New Password <span style="color:var(--danger)">*</span>
           </label>
-          {{ password_form.confirm_password(class="form-control" + (" is-invalid" if password_form.confirm_password.errors else ""), id="confirm_password") }}
+          {{ password_input(password_form.confirm_password, "confirm_password") }}
           {% for error in password_form.confirm_password.errors %}
             <div style="color:var(--danger);font-size:0.8rem;margin-top:0.25rem;">{{ error }}</div>
           {% endfor %}

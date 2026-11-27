@@ -1,0 +1,27 @@
+{% macro password_input(field, input_id, placeholder=None, describedby=None) -%}
+<div class="password-input-wrap">
+  {%- set css_class = "form-control" ~ (" is-invalid" if field.errors else "") -%}
+  {%- if placeholder is not none and describedby is not none -%}
+    {{ field(class=css_class, id=input_id, placeholder=placeholder, **{'aria-describedby': describedby}) }}
+  {%- elif placeholder is not none -%}
+    {{ field(class=css_class, id=input_id, placeholder=placeholder) }}
+  {%- elif describedby is not none -%}
+    {{ field(class=css_class, id=input_id, **{'aria-describedby': describedby}) }}
+  {%- else -%}
+    {{ field(class=css_class, id=input_id) }}
+  {%- endif -%}
+  <button
+    type="button"
+    class="password-toggle-btn"
+    data-password-toggle="{{ input_id }}"
+    aria-pressed="false"
+    aria-label="Show password"
+    aria-describedby="{{ input_id }}-toggle-warning"
+  >
+    <i class="bi bi-eye" aria-hidden="true"></i>
+  </button>
+  <span id="{{ input_id }}-toggle-warning" class="visually-hidden">
+    Warning: this will display your password on the screen.
+  </span>
+</div>
+{%- endmacro %}

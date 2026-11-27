@@ -276,6 +276,28 @@ function initCopyButtons() {
   });
 }
 
+// Wire up [data-password-toggle] buttons for password visibility
+function initPasswordToggles() {
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-password-toggle]');
+    if (!btn) return;
+    const inputId = btn.dataset.passwordToggle;
+    const input = inputId ? document.getElementById(inputId) : null;
+    if (!input) return;
+
+    const currentlyHidden = input.type === 'password';
+    input.type = currentlyHidden ? 'text' : 'password';
+    btn.setAttribute('aria-pressed', String(currentlyHidden));
+    btn.setAttribute('aria-label', currentlyHidden ? 'Hide password' : 'Show password');
+
+    const icon = btn.querySelector('i');
+    if (icon) {
+      icon.classList.toggle('bi-eye', !currentlyHidden);
+      icon.classList.toggle('bi-eye-slash', currentlyHidden);
+    }
+  });
+}
+
 // ===========================================================================
 // 7. Active nav link highlighting
 // ===========================================================================
@@ -301,6 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAlerts();
   initFormValidation();
   initCopyButtons();
+  initPasswordToggles();
   initActiveNav();
 });
 
