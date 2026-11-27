@@ -32,7 +32,7 @@ def _apply_env_overrides(app: Flask) -> None:
         'SIGNING_PRIVATE_KEY_PEM', 'SIGNING_PUBLIC_KEY_PEM',
         'RSA_PRIVATE_KEY_PATH', 'RSA_PUBLIC_KEY_PATH',
         'SIGNING_PRIVATE_KEY_PATH', 'SIGNING_PUBLIC_KEY_PATH',
-        'MAIL_SERVER', 'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_DEFAULT_SENDER',
+        'BREVO_API_KEY', 'MAIL_SERVER', 'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_DEFAULT_SENDER',
     ):
         if os.environ.get(str_key):
             app.config[str_key] = os.environ[str_key]

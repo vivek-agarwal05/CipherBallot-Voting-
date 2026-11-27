@@ -78,8 +78,9 @@ class Config:
     PASSWORD_RESET_MAX_AGE_SECONDS: int = 900  # 15 minutes
 
     # ------------------------------------------------------------------ #
-    # Optional SMTP Email Delivery (PINs & Password Reset)                #
+    # Optional Email Delivery (Brevo HTTPS API or SMTP)                   #
     # ------------------------------------------------------------------ #
+    BREVO_API_KEY: str | None = os.environ.get('BREVO_API_KEY') or None
     MAIL_SERVER: str | None = os.environ.get('MAIL_SERVER') or None
     MAIL_PORT: int = int(os.environ.get('MAIL_PORT') or 587)
     MAIL_USE_TLS: bool = _env_bool('MAIL_USE_TLS', True)

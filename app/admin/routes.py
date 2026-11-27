@@ -988,8 +988,9 @@ def add_institutional_identity():
     db.session.commit()
 
     email_sent = False
+    email_err = None
     if send_email_requested and is_email_configured():
-        email_sent, _ = send_verification_pin_email(
+        email_sent, email_err = send_verification_pin_email(
             to_address=email,
             full_name=full_name,
             student_id=student_id,
@@ -997,6 +998,8 @@ def add_institutional_identity():
             raw_pin=raw_pin,
             register_url=url_for('auth.register', _external=True),
         )
+        if not email_sent and email_err:
+            flash(f'Email delivery failed ({email_err}). Share the Verification PIN below manually.', 'warning')
 
     append_audit_event(
         event_type='institutional_registry.id_added',
@@ -1186,8 +1189,9 @@ def reissue_identity_pin(identity_id: int):
     db.session.commit()
 
     email_sent = False
+    email_err = None
     if is_email_configured():
-        email_sent, _ = send_verification_pin_email(
+        email_sent, email_err = send_verification_pin_email(
             to_address=ident.email,
             full_name=ident.full_name,
             student_id=ident.student_id,
@@ -1195,6 +1199,8 @@ def reissue_identity_pin(identity_id: int):
             raw_pin=new_pin,
             register_url=url_for('auth.register', _external=True),
         )
+        if not email_sent and email_err:
+            flash(f'Email delivery failed ({email_err}). Share the Verification PIN below manually.', 'warning')
 
     append_audit_event(
         event_type='institutional_registry.pin_reissued',

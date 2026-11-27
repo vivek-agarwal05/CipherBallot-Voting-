@@ -1,23 +1,32 @@
 """
-app/security/email.py — Optional SMTP email delivery for PINs and password resets.
+app/security/email.py — Optional email delivery for PINs and password resets.
 
-Uses Python's standard library smtplib + ssl so no extra third-party mail API
-keys are required. When MAIL_SERVER/MAIL_USERNAME/MAIL_PASSWORD are not set,
-send_email() returns (False, reason) cleanly so callers can fall back to manual
-admin distribution.
+Supports:
+  1. Brevo HTTP API over HTTPS (port 443) via BREVO_API_KEY + MAIL_DEFAULT_SENDER
+     (recommended on Render Free tier where outbound SMTP ports are blocked).
+  2. Standard library smtplib + ssl when MAIL_SERVER/MAIL_USERNAME/MAIL_PASSWORD
+     are configured.
 """
+import json
 import logging
 import smtplib
 import ssl
+import urllib.error
+import urllib.request
 from email.message import EmailMessage
+from email.utils import parseaddr
 
 from flask import current_app
 
 logger = logging.getLogger(__name__)
 
 
-def is_email_configured() -> bool:
-    """Return True if minimum SMTP settings are configured."""
+def _is_brevo_configured() -> bool:
+    cfg = current_app.config
+    return bool(cfg.get('BREVO_API_KEY') and (cfg.get('MAIL_DEFAULT_SENDER') or cfg.get('MAIL_USERNAME')))
+
+
+def _is_smtp_configured() -> bool:
     cfg = current_app.config
     return bool(
         cfg.get('MAIL_SERVER')
@@ -26,15 +35,66 @@ def is_email_configured() -> bool:
     )
 
 
+def is_email_configured() -> bool:
+    """Return True if either Brevo HTTPS API or SMTP settings are configured."""
+    return _is_brevo_configured() or _is_smtp_configured()
+
+
+def _send_via_brevo(to_address: str, subject: str, body_text: str) -> tuple[bool, str | None]:
+    cfg = current_app.config
+    api_key: str = cfg['BREVO_API_KEY']
+    raw_sender: str = cfg.get('MAIL_DEFAULT_SENDER') or cfg.get('MAIL_USERNAME') or ''
+    sender_name, sender_email = parseaddr(raw_sender)
+    if not sender_email:
+        return False, 'MAIL_DEFAULT_SENDER must be a valid verified email address.'
+
+    payload = json.dumps({
+        'sender': {
+            'name': sender_name or 'CipherBallot',
+            'email': sender_email,
+        },
+        'to': [{'email': to_address}],
+        'subject': subject,
+        'textContent': body_text,
+    }).encode('utf-8')
+
+    req = urllib.request.Request(
+        'https://api.brevo.com/v3/smtp/email',
+        data=payload,
+        method='POST',
+        headers={
+            'api-key': api_key,
+            'content-type': 'application/json',
+            'accept': 'application/json',
+        },
+    )
+    context = ssl.create_default_context()
+    try:
+        with urllib.request.urlopen(req, timeout=10, context=context) as resp:
+            if 200 <= resp.status < 300:
+                return True, None
+            return False, f'Email API returned HTTP {resp.status}.'
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode('utf-8', errors='replace')[:200]
+        logger.warning('Brevo API delivery failed to %s (HTTP %s): %s', to_address, exc.code, detail)
+        return False, f'HTTP {exc.code}: {detail}'
+    except Exception as exc:
+        logger.warning('Brevo API delivery failed to %s: %s', to_address, exc)
+        return False, str(exc)
+
+
 def send_email(to_address: str, subject: str, body_text: str) -> tuple[bool, str | None]:
     """
-    Send a plain-text email over TLS/SSL SMTP.
+    Send a plain-text email via Brevo HTTPS API (preferred on Render) or TLS/SSL SMTP.
 
     Returns:
         (sent_ok: bool, error_message: str | None)
     """
-    if not is_email_configured():
-        return False, 'SMTP email is not configured.'
+    if _is_brevo_configured():
+        return _send_via_brevo(to_address, subject, body_text)
+
+    if not _is_smtp_configured():
+        return False, 'Email delivery is not configured.'
 
     cfg = current_app.config
     server_host: str = cfg['MAIL_SERVER']

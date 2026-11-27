@@ -334,3 +334,25 @@ def test_health_endpoint_exempt_from_rate_limit(tmp_path, monkeypatch):
     for _ in range(70):
         resp = client.get('/health')
         assert resp.status_code == 200
+
+
+def test_brevo_https_email_helper(app):
+    """Brevo HTTPS API sends PIN emails over port 443 without requiring SMTP ports."""
+    app.config.update({
+        'BREVO_API_KEY': 'xkeysib-test-key',
+        'MAIL_DEFAULT_SENDER': 'CipherBallot <sender@gmail.com>',
+        'MAIL_SERVER': None,
+    })
+    with app.app_context():
+        fake_resp = MagicMock()
+        fake_resp.status = 201
+        fake_cm = MagicMock()
+        fake_cm.__enter__.return_value = fake_resp
+        with patch('app.security.email.urllib.request.urlopen', return_value=fake_cm) as mock_open:
+            ok, err = send_verification_pin_email(
+                'student@univ.edu', 'Vivek', '590017507', 'CS', 'PIN-ABC123', 'https://cipherballot.onrender.com/auth/register'
+            )
+            assert ok is True and err is None
+            req = mock_open.call_args[0][0]
+            assert req.full_url == 'https://api.brevo.com/v3/smtp/email'
+            assert req.get_header('Api-key') == 'xkeysib-test-key'
