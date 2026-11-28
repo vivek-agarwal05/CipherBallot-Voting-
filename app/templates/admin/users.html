@@ -97,7 +97,14 @@
         Accounts authorized to sign in. Student voters are linked to verified institutional IDs.
       </p>
     </div>
-    <span class="badge badge-primary">{{ users|length }} Total User(s)</span>
+    <div style="display:flex;align-items:center;gap:0.65rem;flex-wrap:wrap;">
+      <search>
+        <input type="search" class="form-control" data-table-filter="accountsTableBody"
+               aria-label="Filter registered accounts"
+               placeholder="Search accounts..." style="min-width:200px;font-size:0.85rem;">
+      </search>
+      <span class="badge badge-primary">{{ users|length }} Total User(s)</span>
+    </div>
   </div>
 
   <div class="table-wrapper">
@@ -114,9 +121,9 @@
           <th>Action</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="accountsTableBody">
         {% for user in users %}
-        <tr>
+        <tr data-filter-row>
           <td><code>{{ user.username }}</code></td>
           <td><strong>{{ user.display_name }}</strong></td>
           <td>
@@ -193,7 +200,12 @@
         Authoritative roster. Any new student added here can register independently at <code>/auth/register</code>.
       </p>
     </div>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+      <search>
+        <input type="search" class="form-control" data-table-filter="registryTableBody"
+               aria-label="Filter institutional registry"
+               placeholder="Search Student ID or name..." style="min-width:200px;font-size:0.85rem;">
+      </search>
       <button class="btn btn-outline btn-sm" onclick="document.getElementById('import-csv-modal').style.display='block';">
         <i class="bi bi-file-earmark-spreadsheet"></i> Bulk Import CSV
       </button>
@@ -216,9 +228,9 @@
           <th>Linked Account / Action</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="registryTableBody">
         {% for ident in identities %}
-        <tr>
+        <tr data-filter-row>
           <td><code style="font-weight:700;color:var(--primary);">{{ ident.student_id }}</code></td>
           <td>{{ ident.full_name }}</td>
           <td><span style="font-size:0.82rem;">{{ ident.department }}</span></td>
@@ -243,12 +255,22 @@
             {% if ident.claimed_by %}
               <code>@{{ ident.claimed_by.username }}</code>
             {% else %}
-              <form method="post" action="{{ url_for('admin.reissue_identity_pin', identity_id=ident.id) }}" style="display:inline;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-ghost btn-sm" title="Generate a fresh Verification PIN">
-                  <i class="bi bi-arrow-clockwise"></i> Re-issue PIN
-                </button>
-              </form>
+              <div style="display:inline-flex;gap:0.35rem;flex-wrap:wrap;">
+                <form method="post" action="{{ url_for('admin.reissue_identity_pin', identity_id=ident.id) }}" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-ghost btn-sm" title="Generate a fresh Verification PIN">
+                    <i class="bi bi-arrow-clockwise"></i> Re-issue PIN
+                  </button>
+                </form>
+                <form method="post" action="{{ url_for('admin.delete_institutional_identity', identity_id=ident.id) }}"
+                      style="display:inline;"
+                      data-confirm="Remove unclaimed Student ID {{ ident.student_id }} ({{ ident.full_name }}) from roster?">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);" title="Remove unclaimed record">
+                    <i class="bi bi-trash"></i> Remove
+                  </button>
+                </form>
+              </div>
             {% endif %}
           </td>
         </tr>

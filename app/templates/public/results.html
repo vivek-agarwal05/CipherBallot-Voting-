@@ -5,6 +5,9 @@
 <div class="page-header" style="margin-bottom:1.5rem;">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
     <div>
+      <a href="{{ url_for('public.bulletin_board', election_id=election.id) }}" class="btn btn-ghost btn-sm" style="margin-bottom:0.5rem;">
+        &larr; View Bulletin Board
+      </a>
       <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
         <span class="badge badge-published" style="text-transform:uppercase;">Certified &amp; Published</span>
         <span class="badge" style="background:var(--primary-light);color:var(--primary-dark);">Variant {{
@@ -139,10 +142,15 @@
   <div style="display:grid;gap:0.75rem;font-size:0.85rem;margin-top:1rem;">
     <div>
       <span style="color:var(--text-muted);display:block;margin-bottom:0.25rem;">Ed25519 Digital Signature (Hex):</span>
-      <code
-        style="word-break:break-all;display:block;background:var(--bg-secondary);padding:0.6rem;border-radius:4px;font-size:0.8rem;color:var(--navy);">
-        {{ published.signature_hex }}
-      </code>
+      <div style="display:flex;gap:0.5rem;align-items:flex-start;flex-wrap:wrap;">
+        <code
+          style="word-break:break-all;display:block;background:var(--bg-secondary);padding:0.6rem;border-radius:4px;font-size:0.8rem;color:var(--navy);flex:1;min-width:220px;">
+          {{ published.signature_hex }}
+        </code>
+        <button type="button" class="btn btn-outline btn-sm" data-copy="{{ published.signature_hex }}" title="Copy Ed25519 signature">
+          <i class="bi bi-clipboard"></i> Copy Signature
+        </button>
+      </div>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:1rem;">
@@ -194,7 +202,16 @@
   const votes = Object.values({{ result_data.get('tally', {}) | tojson }});
   {% endif %}
 
-  new Chart(ctx, {
+  function themeColors() {
+    const styles = getComputedStyle(document.documentElement);
+    return {
+      cardBg: styles.getPropertyValue('--card').trim() || '#ffffff',
+      textColor: styles.getPropertyValue('--text').trim() || '#1E293B',
+    };
+  }
+
+  const initialColors = themeColors();
+  const chart = new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: labels,
@@ -202,16 +219,26 @@
         data: votes,
         backgroundColor: ['#4F46E5', '#0D9488', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6'],
         borderWidth: 2,
-        borderColor: '#ffffff'
+        borderColor: initialColors.cardBg
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Inter', size: 11 } } }
+        legend: {
+          position: 'bottom',
+          labels: { boxWidth: 12, color: initialColors.textColor, font: { family: 'Inter', size: 11 } }
+        }
       }
     }
+  });
+
+  window.addEventListener('cipherballot:themechange', () => {
+    const c = themeColors();
+    chart.data.datasets[0].borderColor = c.cardBg;
+    chart.options.plugins.legend.labels.color = c.textColor;
+    chart.update();
   });
 });
 </script>

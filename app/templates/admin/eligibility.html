@@ -19,31 +19,48 @@
   </div>
 </div>
 
-<!-- Add Individual Voter -->
+<!-- Add Individual Voter & Bulk Actions -->
 <div class="card" style="margin-bottom:1.5rem;padding:1.25rem;">
-  <form method="post" action="{{ url_for('admin.add_single_voter_eligibility', election_id=election.id) }}"
-    style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div style="flex-grow:1;min-width:240px;">
-      <label for="username" style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.25rem;">
-        Grant Eligibility by Student ID / Username:
-      </label>
-      <input type="text" id="username" name="username" class="form-control" placeholder="e.g. alice, bob, student123"
-        required>
-    </div>
-    <button type="submit" class="btn btn-primary btn-sm" style="height:38px;">
-      <i class="bi bi-person-plus"></i> Grant Eligibility
-    </button>
-  </form>
+  <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;justify-content:space-between;">
+    <form method="post" action="{{ url_for('admin.add_single_voter_eligibility', election_id=election.id) }}"
+      style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;flex:1;min-width:260px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="flex-grow:1;min-width:200px;">
+        <label for="username" style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.25rem;">
+          Grant Eligibility by Student ID / Username:
+        </label>
+        <input type="text" id="username" name="username" class="form-control" placeholder="e.g. alice, bob, 590017507"
+          required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm" style="height:38px;">
+        <i class="bi bi-person-plus"></i> Grant Eligibility
+      </button>
+    </form>
+
+    <form method="post" action="{{ url_for('admin.grant_all_voters_eligibility', election_id=election.id) }}"
+          data-confirm="Grant eligibility in '{{ election.title }}' to all active registered voters?" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline btn-sm" style="height:38px;">
+        <i class="bi bi-people-fill"></i> Grant All Active Voters
+      </button>
+    </form>
+  </div>
 </div>
 
 <!-- Roster Table -->
 <div class="card">
-  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
-    <h3 style="font-size:1.05rem;font-weight:600;margin:0;">Registered Student Roster</h3>
-    <span style="font-size:0.8rem;color:var(--text-muted);">
-      {{ voters|length }} total registered users in system
-    </span>
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem;">
+    <div>
+      <h3 style="font-size:1.05rem;font-weight:600;margin:0;">Registered Student Roster</h3>
+      <span style="font-size:0.8rem;color:var(--text-muted);">
+        {{ voters|length }} total registered users in system
+      </span>
+    </div>
+    <search>
+      <input type="search" class="form-control" data-table-filter="eligibilityTableBody"
+             aria-label="Filter registered voters"
+             placeholder="Filter by username or name..." style="min-width:220px;font-size:0.85rem;">
+    </search>
   </div>
 
   <div class="table-wrapper">
@@ -57,10 +74,10 @@
           <th style="text-align:right;">Action</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="eligibilityTableBody">
         {% for voter in voters %}
         {% set is_eligible = (eligibilities.get(voter.id) == 'eligible') %}
-        <tr>
+        <tr data-filter-row>
           <td><code style="font-size:0.85rem;color:var(--navy);">{{ voter.username }}</code></td>
           <td style="font-weight:500;">{{ voter.display_name }}</td>
           <td>

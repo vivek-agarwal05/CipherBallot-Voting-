@@ -398,6 +398,45 @@ def add_single_voter_eligibility(election_id: int):
     return redirect(url_for('admin.manage_eligibility', election_id=election_id))
 
 
+@admin_bp.route('/elections/<int:election_id>/eligibility/grant-all', methods=['POST'])
+@login_required
+def grant_all_voters_eligibility(election_id: int):
+    """Grant election eligibility to all currently active registered voters."""
+    _require_admin()
+    election = db.session.get(Election, election_id)
+    if not election:
+        abort(404)
+
+    active_voters = (
+        db.session.query(User)
+        .filter_by(role='voter', is_active=True)
+        .all()
+    )
+    existing_map = {
+        e.voter_id: e
+        for e in db.session.query(ElectionEligibility).filter_by(election_id=election_id).all()
+    }
+    updated_count = 0
+    for voter in active_voters:
+        rec = existing_map.get(voter.id)
+        if rec is None:
+            db.session.add(ElectionEligibility(election_id=election_id, voter_id=voter.id, status='eligible'))
+            updated_count += 1
+        elif rec.status != 'eligible':
+            rec.status = 'eligible'
+            updated_count += 1
+
+    db.session.commit()
+    append_audit_event(
+        event_type='election.eligibility_bulk_granted',
+        actor_category='admin',
+        actor_ref=current_user.username,
+        payload={'election_id': election_id, 'newly_granted': updated_count},
+    )
+    flash(f'Granted eligibility to {updated_count} additional active voter(s).', 'success')
+    return redirect(url_for('admin.manage_eligibility', election_id=election_id))
+
+
 # ---------------------------------------------------------------------------
 # Status Lifecycle & Tallying
 # ---------------------------------------------------------------------------
@@ -1225,6 +1264,33 @@ def reissue_identity_pin(identity_id: int):
             'emailed': email_sent,
         }]
     )
+
+
+@admin_bp.route('/registry/<int:identity_id>/delete', methods=['POST'])
+@login_required
+def delete_institutional_identity(identity_id: int):
+    """Remove an unclaimed student ID record from the pre-approved roster."""
+    _require_admin()
+    ident = db.session.get(InstitutionalIdentity, identity_id)
+    if ident is None:
+        abort(404)
+    if ident.is_claimed:
+        flash(f'Student ID "{ident.student_id}" has already been registered and cannot be removed.', 'warning')
+        return redirect(url_for('admin.users'))
+
+    student_id = ident.student_id
+    full_name = ident.full_name
+    db.session.delete(ident)
+    db.session.commit()
+
+    append_audit_event(
+        event_type='institutional_registry.id_removed',
+        actor_category='admin',
+        actor_ref=current_user.username,
+        payload={'student_id': student_id, 'name': full_name},
+    )
+    flash(f'Removed unclaimed Student ID "{student_id}" ({full_name}) from roster.', 'info')
+    return redirect(url_for('admin.users'))
 
 
 @admin_bp.route('/users/<int:user_id>/reset-link', methods=['POST'])

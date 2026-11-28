@@ -16,7 +16,12 @@
   
   <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
     {% if not current_user.is_authenticated %}
-      <a href="{{ url_for('auth.login') }}" class="btn btn-primary"><i class="bi bi-box-arrow-in-right"></i> Sign In to Demo Accounts</a>
+      <a href="{{ url_for('auth.login') }}" class="btn btn-primary">
+        <i class="bi bi-box-arrow-in-right"></i> {{ 'Sign In to Demo Accounts' if show_demo_hints else 'Sign In' }}
+      </a>
+      <a href="{{ url_for('auth.register') }}" class="btn btn-outline">
+        <i class="bi bi-person-plus"></i> Register with Student ID
+      </a>
     {% elif current_user.is_admin %}
       <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary"><i class="bi bi-speedometer2"></i> Open Admin Dashboard</a>
     {% else %}

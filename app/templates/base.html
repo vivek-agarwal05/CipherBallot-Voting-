@@ -26,9 +26,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   
   <!-- CSS -->
-  <script src="{{ url_for('static', filename='js/theme.js', v='3') }}"></script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v='3') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css', v='3') }}">
+  <script src="{{ url_for('static', filename='js/theme.js', v='4') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v='4') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css', v='4') }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   {% block extra_css %}{% endblock %}
 </head>
@@ -121,7 +121,17 @@
           </a>
         </li>
 
-        <!-- 5. Security Demo -> 5 CSEG3040 controlled security experiments -->
+        <!-- 5. Admin-only: Users & Registry, Security Demo, Audit Logs -->
+        {% if current_user.is_authenticated and current_user.is_admin %}
+        <li class="sidebar-menu-item">
+          <a href="{{ url_for('admin.users') }}"
+             class="sidebar-nav-link {% if cur_ep in ('admin.users', 'admin.add_institutional_identity', 'admin.import_institutional_csv', 'admin.reissue_identity_pin', 'admin.issue_password_reset_link') %}active{% endif %}"
+             title="Users &amp; ID Registry — Manage voters, CSV roster imports, and verification PINs">
+            <i class="bi bi-people nav-icon"></i>
+            <span>Users &amp; Registry</span>
+          </a>
+        </li>
+
         <li class="sidebar-menu-item">
           <a href="{{ url_for('admin.security_demo') }}" 
              class="sidebar-nav-link {% if 'security_demo' in cur_ep %}active{% endif %}"
@@ -130,6 +140,25 @@
             <span>Security Demo</span>
           </a>
         </li>
+
+        <li class="sidebar-menu-item">
+          <a href="{{ url_for('admin.audit_log') }}" 
+             class="sidebar-nav-link {% if 'audit' in cur_ep %}active{% endif %}"
+             title="Audit Logs — Hash-chained event log and integrity verification">
+            <i class="bi bi-journal-text nav-icon"></i>
+            <span>Audit Logs</span>
+          </a>
+        </li>
+        {% elif current_user.is_authenticated %}
+        <li class="sidebar-menu-item">
+          <a href="{{ url_for('voter.voting_status') }}"
+             class="sidebar-nav-link {% if cur_ep == 'voter.voting_status' %}active{% endif %}"
+             title="My Voting Status — Check participation across elections">
+            <i class="bi bi-check2-circle nav-icon"></i>
+            <span>My Status</span>
+          </a>
+        </li>
+        {% endif %}
 
         <!-- 6. Bulletin Board & Results -> Public digests and Ed25519 signed results -->
         <li class="sidebar-menu-item">
@@ -141,17 +170,18 @@
           </a>
         </li>
 
-        <!-- 7. Audit Logs -> Hash-chained event log and integrity verification -->
+        {% if current_user.is_authenticated %}
         <li class="sidebar-menu-item">
-          <a href="{{ url_for('admin.audit_log') }}" 
-             class="sidebar-nav-link {% if 'audit' in cur_ep %}active{% endif %}"
-             title="Audit Logs — Hash-chained event log and integrity verification">
-            <i class="bi bi-journal-text nav-icon"></i>
-            <span>Audit Logs</span>
+          <a href="{{ url_for('auth.account_settings') }}"
+             class="sidebar-nav-link {% if cur_ep in ('auth.account_settings', 'auth.update_account_username', 'auth.change_account_password') %}active{% endif %}"
+             title="Account Settings — Change username, display name, or password">
+            <i class="bi bi-person-gear nav-icon"></i>
+            <span>Account Settings</span>
           </a>
         </li>
+        {% endif %}
 
-        <!-- 8. About -> Project architecture, Variants A/B/C, and privacy model -->
+        <!-- 7. About -> Project architecture, Variants A/B/C, and privacy model -->
         <li class="sidebar-menu-item">
           <a href="{{ url_for('public.privacy_guide') }}" 
              class="sidebar-nav-link {% if cur_ep == 'public.privacy_guide' %}active{% endif %}"
@@ -176,9 +206,9 @@
             </button>
           </form>
         {% else %}
-          <a href="{{ url_for('auth.login') }}" class="sidebar-action-btn sidebar-login-btn" title="Sign in with demo voter or admin accounts">
+          <a href="{{ url_for('auth.login') }}" class="sidebar-action-btn sidebar-login-btn" title="Sign in to CipherBallot">
             <i class="bi bi-box-arrow-in-right nav-icon"></i>
-            <span>Sign In / Demo</span>
+            <span>{{ 'Sign In / Demo' if show_demo_hints else 'Sign In' }}</span>
           </a>
         {% endif %}
       </div>
@@ -266,8 +296,8 @@
 
 <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
-<script src="{{ url_for('static', filename='js/main.js', v='3') }}"></script>
-<script src="{{ url_for('static', filename='js/sidebar.js', v='3') }}"></script>
+<script src="{{ url_for('static', filename='js/main.js', v='4') }}"></script>
+<script src="{{ url_for('static', filename='js/sidebar.js', v='4') }}"></script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

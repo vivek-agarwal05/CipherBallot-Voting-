@@ -29,6 +29,14 @@
       <p style="margin-bottom:1rem;line-height:1.5;">
         {{ e.description or 'No description provided.' }}
       </p>
+      {% if e.start_dt or e.end_dt %}
+      <div style="font-size:0.76rem;color:var(--text-muted);margin-bottom:0.75rem;">
+        <i class="bi bi-clock"></i>
+        {% if e.start_dt %}Opens {{ e.start_dt.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
+        {% if e.start_dt and e.end_dt %} • {% endif %}
+        {% if e.end_dt %}Closes {{ e.end_dt.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
+      </div>
+      {% endif %}
 
       <div style="display:flex;justify-content:space-between;font-size:0.8rem;border-top:1px solid var(--border);padding-top:0.75rem;margin-top:auto;">
         <span><strong>Candidates:</strong> {{ e.candidates|length }}</span>

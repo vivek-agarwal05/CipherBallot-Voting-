@@ -299,7 +299,27 @@ function initPasswordToggles() {
 }
 
 // ===========================================================================
-// 7. Active nav link highlighting
+// 7. Live client-side table filters ([data-table-filter])
+// ===========================================================================
+
+function initTableFilters() {
+  document.querySelectorAll('[data-table-filter]').forEach((input) => {
+    const targetId = input.dataset.tableFilter;
+    const tbody = targetId ? document.getElementById(targetId) : null;
+    if (!tbody) return;
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim().toLowerCase();
+      tbody.querySelectorAll('tr[data-filter-row]').forEach((row) => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = (!q || text.includes(q)) ? '' : 'none';
+      });
+    });
+  });
+}
+
+// ===========================================================================
+// 8. Active nav link highlighting
 // ===========================================================================
 
 function initActiveNav() {
@@ -324,6 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initFormValidation();
   initCopyButtons();
   initPasswordToggles();
+  initTableFilters();
   initActiveNav();
 });
 

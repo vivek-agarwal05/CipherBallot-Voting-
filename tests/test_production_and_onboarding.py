@@ -356,3 +356,70 @@ def test_brevo_https_email_helper(app):
             req = mock_open.call_args[0][0]
             assert req.full_url == 'https://api.brevo.com/v3/smtp/email'
             assert req.get_header('Api-key') == 'xkeysib-test-key'
+
+
+def test_role_aware_sidebar_and_admin_bulk_ui_actions(client, db, admin_user, voter_user):
+    """Sidebar hides admin-only links from voters/guests, /auth/account has unique IDs, and bulk/remove actions work."""
+    # Guest homepage & sidebar should not expose admin-only links
+    r_guest = client.get('/')
+    assert r_guest.status_code == 200
+    assert b'/admin/security-demo' not in r_guest.data
+    assert b'/admin/audit' not in r_guest.data
+
+    # Voter login: sees My Status & Account Settings, NOT admin links
+    client.post('/auth/login', data={'username': 'testvoter', 'password': 'VoterPass123!'}, follow_redirects=True)
+    r_voter = client.get('/voter/')
+    assert r_voter.status_code == 200
+    assert b'/voter/status' in r_voter.data
+    assert b'/auth/account' in r_voter.data
+    assert b'/admin/security-demo' not in r_voter.data
+    assert b'/admin/audit' not in r_voter.data
+
+    # Account settings page has no duplicate id="csrf_token"
+    r_acct = client.get('/auth/account')
+    assert r_acct.data.decode().count('id="csrf_token"') <= 1
+    client.post('/auth/logout', follow_redirects=True)
+
+    # Admin login: sees Users & Registry + Security Demo + Audit Logs
+    client.post('/auth/login', data={'username': 'testadmin', 'password': 'AdminPass123!'}, follow_redirects=True)
+    r_adm = client.get('/admin/')
+    assert b'/admin/users' in r_adm.data
+    assert b'/admin/security-demo' in r_adm.data
+    assert b'/admin/audit' in r_adm.data
+
+    # Create election & grant all active voters
+    el = Election(title='All Campus Poll', group_dept='Campus', variant='B', status='open', created_by=admin_user.id)
+    db.session.add(el)
+    db.session.commit()
+    r_grant = client.post(f'/admin/elections/{el.id}/eligibility/grant-all', follow_redirects=True)
+    assert r_grant.status_code == 200
+    assert b'Granted eligibility to 1 additional active voter' in r_grant.data
+
+    # Add unclaimed and claimed identities, verify only unclaimed can be removed
+    unclaimed = InstitutionalIdentity(
+        student_id='STU-DEL-1',
+        full_name='Delete Me',
+        department='CS',
+        email='del@univ.edu',
+        verification_pin_hash=hash_password('PIN-DEL1'),
+        is_claimed=False,
+    )
+    claimed = InstitutionalIdentity(
+        student_id='STU-KEEP-1',
+        full_name='Keep Me',
+        department='CS',
+        email='keep@univ.edu',
+        verification_pin_hash=hash_password('PIN-KEEP1'),
+        is_claimed=True,
+        claimed_by_user_id=voter_user.id,
+    )
+    db.session.add_all([unclaimed, claimed])
+    db.session.commit()
+
+    r_del_ok = client.post(f'/admin/registry/{unclaimed.id}/delete', follow_redirects=True)
+    assert b'Removed unclaimed Student ID' in r_del_ok.data
+    assert db.session.get(InstitutionalIdentity, unclaimed.id) is None
+
+    r_del_no = client.post(f'/admin/registry/{claimed.id}/delete', follow_redirects=True)
+    assert b'already been registered and cannot be removed' in r_del_no.data
+    assert db.session.get(InstitutionalIdentity, claimed.id) is not None

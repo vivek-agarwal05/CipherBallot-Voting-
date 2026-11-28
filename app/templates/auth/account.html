@@ -38,7 +38,7 @@
     </div>
     <div class="card-body" style="padding:1.5rem;">
       <form method="post" action="{{ url_for('auth.update_account_username') }}" novalidate>
-        {{ username_form.hidden_tag() }}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="form-group" style="margin-bottom:1rem;">
           <label for="username" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">
@@ -92,7 +92,7 @@
     </div>
     <div class="card-body" style="padding:1.5rem;">
       <form method="post" action="{{ url_for('auth.change_account_password') }}" novalidate>
-        {{ password_form.hidden_tag() }}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="form-group" style="margin-bottom:1rem;">
           <label for="current_password" style="font-weight:600;font-size:0.875rem;margin-bottom:0.25rem;display:block;">

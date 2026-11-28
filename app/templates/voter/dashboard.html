@@ -93,6 +93,11 @@
             </a>
             <div style="font-size:0.75rem;color:var(--text-muted);">
               {{ e.candidates|length }} registered candidate(s)
+              {% if e.end_dt %}
+                • Closes {{ e.end_dt.strftime('%Y-%m-%d %H:%M UTC') }}
+              {% elif e.start_dt %}
+                • Opens {{ e.start_dt.strftime('%Y-%m-%d %H:%M UTC') }}
+              {% endif %}
             </div>
           </td>
           <td>{{ e.group_dept or 'Institutional' }}</td>

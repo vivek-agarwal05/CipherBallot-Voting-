@@ -91,7 +91,11 @@
 function goToConfirmStep() {
   const selectedRadio = document.querySelector('input[name="candidate_id"]:checked');
   if (!selectedRadio) {
-    alert('Please select a candidate before proceeding.');
+    if (window.CipherBallot) {
+      window.CipherBallot.showToast('Please select a candidate before proceeding.', 'warning', 3500);
+    } else {
+      alert('Please select a candidate before proceeding.');
+    }
     return;
   }
   const candidateName = selectedRadio.getAttribute('data-candidate-name') || selectedRadio.value;
